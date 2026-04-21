@@ -1,0 +1,39 @@
+package com.DevBridge.devbridge.dto;
+
+import lombok.*;
+
+import java.util.List;
+import java.util.Map;
+
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+public class UserProfileDetailResponse {
+    private Long userId;
+    
+    // User 테이블 기본 정보
+    private String phone;
+    private String birthDate;
+    private String region;
+    private String taxEmail;
+    private String contactEmail;
+    private String gender;
+    private String profileImageUrl;  // 프로필 이미지 URL
+    private String serviceField;  // PARTNER: users.service_field
+    
+    // UserProfileDetail 정보
+    private String bio;
+    private String strengthDesc;
+    private String shortBio;       // 한줄 자기소개 (PARTNER/CLIENT)
+    private String industry;       // CLIENT: client_profile.industry
+    private String slogan;         // CLIENT: client_profile.slogan
+    private String sloganSub;      // CLIENT: client_profile.slogan_sub
+    private String githubUrl;
+    private String githubHandle;
+    private String githubRepoUrl;
+    private Map<String, Boolean> profileMenuToggles;
+    private UserProfileDetailRequest.VerifiedEmail verifiedEmail;
+    private List<UserProfileDetailRequest.SkillItem> skills;
+    private List<UserProfileDetailRequest.CareerItem> careers;
+    private List<UserProfileDetailRequest.EducationItem> educations;
+    private List<UserProfileDetailRequest.CertificationItem> certifications;
+    private List<UserProfileDetailRequest.AwardItem> awards;
+}

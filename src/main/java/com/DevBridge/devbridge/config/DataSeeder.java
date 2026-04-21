@@ -1,0 +1,584 @@
+package com.DevBridge.devbridge.config;
+
+import com.DevBridge.devbridge.entity.*;
+import com.DevBridge.devbridge.repository.*;
+import com.DevBridge.devbridge.util.EnumMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.InputStream;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * ERD v2 mock JSON 시드 러너.
+ * - 위치: classpath:seed/erd/*.json (build.gradle processResources에서 자동 복사)
+ * - 멱등성: 각 테이블 count() > 0 이면 스킵
+ * - 의존성 순서: skill_master → project_field_master → users → client_profile / partner_profile → partner_skill
+ * - Phase 2 범위: 위 6개 테이블만 시드. 나머지는 Phase 3~5에서 추가.
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class DataSeeder implements CommandLineRunner {
+
+    private final SkillMasterRepository skillMasterRepository;
+    private final ProjectFieldMasterRepository projectFieldMasterRepository;
+    private final UserRepository userRepository;
+    private final ClientProfileRepository clientProfileRepository;
+    private final PartnerProfileRepository partnerProfileRepository;
+    private final PartnerSkillRepository partnerSkillRepository;
+    private final PartnerProfileStatsRepository partnerProfileStatsRepository;
+    private final ClientProfileStatsRepository clientProfileStatsRepository;
+    private final ClientPreferredSkillRepository clientPreferredSkillRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectTagRepository projectTagRepository;
+    private final ProjectSkillMappingRepository projectSkillMappingRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // JSON 원본 id → 저장된 엔티티 PK 매핑 (FK 매핑용)
+    private final Map<Long, Long> userIdMap = new HashMap<>();
+    private final Map<Long, Long> skillIdMap = new HashMap<>();
+    private final Map<Long, Long> partnerProfileIdMap = new HashMap<>();
+    private final Map<Long, Long> clientProfileIdMap = new HashMap<>();
+    private final Map<Long, Long> projectIdMap = new HashMap<>();
+
+    @Override
+    @Transactional
+    public void run(String... args) throws Exception {
+        log.info("===== DataSeeder 시작 =====");
+        seedSkillMaster();
+        seedProjectFieldMaster();
+        seedUsers();
+        seedClientProfile();
+        seedPartnerProfile();
+        seedPartnerSkill();
+        seedPartnerProfileStats();
+        seedClientProfileStats();
+        seedClientPreferredSkill();
+        seedProjects();
+        seedProjectTags();
+        seedProjectSkillMapping();
+        log.info("===== DataSeeder 완료 =====");
+    }
+
+    // ----------------------------------------------------
+    // Master
+    // ----------------------------------------------------
+    private void seedSkillMaster() throws Exception {
+        if (skillMasterRepository.count() > 0) {
+            log.info("[skill_master] 이미 데이터 존재 → 스킵 (count={})", skillMasterRepository.count());
+            // 기존 매핑 복원 (이름 기준)
+            skillMasterRepository.findAll().forEach(s -> skillIdMap.put((long) s.getId().intValue(), s.getId()));
+            // 위 라인은 id가 1부터라고 가정 시 동작하지만, 정확한 매핑은 JSON 재로딩 필요.
+            // 안전을 위해 JSON에서 다시 읽어 매핑.
+            JsonNode arr = readJson("seed/erd/skill_master.json");
+            for (JsonNode n : arr) {
+                Long jsonId = n.get("id").asLong();
+                String name = n.get("name").asText();
+                skillMasterRepository.findByName(name).ifPresent(s -> skillIdMap.put(jsonId, s.getId()));
+            }
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/skill_master.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long jsonId = n.get("id").asLong();
+            SkillMaster saved = skillMasterRepository.save(SkillMaster.builder()
+                    .name(n.get("name").asText())
+                    .build());
+            skillIdMap.put(jsonId, saved.getId());
+            count++;
+        }
+        log.info("[skill_master] {} rows 시드 완료", count);
+    }
+
+    private void seedProjectFieldMaster() throws Exception {
+        if (projectFieldMasterRepository.count() > 0) {
+            log.info("[project_field_master] 스킵");
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/project_field_master.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            projectFieldMasterRepository.save(ProjectFieldMaster.builder()
+                    .parentCategory(text(n, "parent_category"))
+                    .fieldName(text(n, "field_name"))
+                    .build());
+            count++;
+        }
+        log.info("[project_field_master] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Users
+    // ----------------------------------------------------
+    private void seedUsers() throws Exception {
+        if (userRepository.count() > 0) {
+            log.info("[users] 이미 데이터 존재 → 스킵 (count={})", userRepository.count());
+            // user_id 매핑 복원 (email 기준)
+            JsonNode arr = readJson("seed/erd/users.json");
+            for (JsonNode n : arr) {
+                String email = n.get("email").asText();
+                Long jsonId = n.get("id").asLong();
+                userRepository.findByEmail(email).ifPresent(u -> userIdMap.put(jsonId, u.getId()));
+            }
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/users.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long jsonId = n.get("id").asLong();
+            User saved = userRepository.save(User.builder()
+                    .email(text(n, "email"))
+                    .phone(text(n, "phone"))
+                    .username(text(n, "username"))
+                    .password(text(n, "password"))
+                    .userType(EnumMapper.userType(text(n, "user_type")))
+                    .interests(textOr(n, "interests", ""))
+                    .contactEmail(text(n, "contact_email"))
+                    .gender(EnumMapper.gender(text(n, "gender")))
+                    .birthDate(parseDate(text(n, "birth_date")))
+                    .region(text(n, "region"))
+                    .taxEmail(text(n, "tax_email"))
+                    .faxNumber(text(n, "fax_number"))
+                    .bankName(text(n, "bank_name"))
+                    .bankAccountNumber(text(n, "bank_account_number"))
+                    .bankAccountHolderName(text(n, "bank_account_holder_name"))
+                    .profileImageUrl(text(n, "profile_image_url"))
+                    .build());
+            userIdMap.put(jsonId, saved.getId());
+            count++;
+        }
+        log.info("[users] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Client Profile
+    // ----------------------------------------------------
+    private void seedClientProfile() throws Exception {
+        if (clientProfileRepository.count() > 0) {
+            log.info("[client_profile] 스킵");
+            // 매핑 복원
+            JsonNode arr = readJson("seed/erd/client_profile.json");
+            for (JsonNode n : arr) {
+                Long jsonId = n.get("id").asLong();
+                Long userJsonId = n.get("user_id").asLong();
+                Long realUserId = userIdMap.get(userJsonId);
+                if (realUserId == null) continue;
+                clientProfileRepository.findAll().stream()
+                        .filter(c -> c.getUser().getId().equals(realUserId))
+                        .findFirst()
+                        .ifPresent(c -> clientProfileIdMap.put(jsonId, c.getId()));
+            }
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/client_profile.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long jsonId = n.get("id").asLong();
+            Long userJsonId = n.get("user_id").asLong();
+            Long realUserId = userIdMap.get(userJsonId);
+            if (realUserId == null) continue;
+            User user = userRepository.findById(realUserId).orElse(null);
+            if (user == null) continue;
+
+            ClientProfile saved = clientProfileRepository.save(ClientProfile.builder()
+                    .user(user)
+                    .clientType(EnumMapper.clientType(text(n, "client_type")))
+                    .slogan(textOr(n, "slogan", ""))
+                    .industry(text(n, "industry"))
+                    .grade(EnumMapper.grade(text(n, "grade")))
+                    .sloganSub(text(n, "slogan_sub"))
+                    .bio(text(n, "bio"))
+                    .strengthDesc(text(n, "strength_desc"))
+                    .preferredLevels(jsonString(n, "preferred_levels"))
+                    .preferredWorkType(intOrNull(n, "preferred_work_type"))
+                    .budgetMin(intOrNull(n, "budget_min"))
+                    .budgetMax(intOrNull(n, "budget_max"))
+                    .avgProjectBudget(intOrNull(n, "avg_project_budget"))
+                    .avatarColor(text(n, "avatar_color"))
+                    .build());
+            clientProfileIdMap.put(jsonId, saved.getId());
+            count++;
+        }
+        log.info("[client_profile] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Partner Profile
+    // ----------------------------------------------------
+    private void seedPartnerProfile() throws Exception {
+        if (partnerProfileRepository.count() > 0) {
+            log.info("[partner_profile] 스킵");
+            // 매핑 복원
+            JsonNode arr = readJson("seed/erd/partner_profile.json");
+            for (JsonNode n : arr) {
+                Long jsonId = n.get("id").asLong();
+                Long userJsonId = n.get("user_id").asLong();
+                Long realUserId = userIdMap.get(userJsonId);
+                if (realUserId == null) continue;
+                partnerProfileRepository.findAll().stream()
+                        .filter(p -> p.getUser().getId().equals(realUserId))
+                        .findFirst()
+                        .ifPresent(p -> partnerProfileIdMap.put(jsonId, p.getId()));
+            }
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/partner_profile.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long jsonId = n.get("id").asLong();
+            Long userJsonId = n.get("user_id").asLong();
+            Long realUserId = userIdMap.get(userJsonId);
+            if (realUserId == null) continue;
+            User user = userRepository.findById(realUserId).orElse(null);
+            if (user == null) continue;
+
+            PartnerProfile saved = partnerProfileRepository.save(PartnerProfile.builder()
+                    .user(user)
+                    .title(text(n, "title"))
+                    .heroKey(text(n, "hero_key"))
+                    .serviceField(text(n, "service_field"))
+                    .workCategory(EnumMapper.workCategory(text(n, "work_category")))
+                    .jobRoles(jsonString(n, "job_roles"))
+                    .partnerType(EnumMapper.partnerType(text(n, "partner_type")))
+                    .preferredProjectType(EnumMapper.preferredProjectType(text(n, "preferred_project_type")))
+                    .workAvailableHours(jsonString(n, "work_available_hours"))
+                    .communicationChannels(jsonString(n, "communication_channels"))
+                    .devLevel(EnumMapper.devLevel(text(n, "dev_level")))
+                    .devExperience(EnumMapper.devExperience(text(n, "dev_experience")))
+                    .workPreference(EnumMapper.workPreference(text(n, "work_preference")))
+                    .slogan(textOr(n, "slogan", ""))
+                    .sloganSub(text(n, "slogan_sub"))
+                    .strengthDesc(text(n, "strength_desc"))
+                    .avatarColor(text(n, "avatar_color"))
+                    .salaryHour(intOrNull(n, "salary_hour"))
+                    .salaryMonth(intOrNull(n, "salary_month"))
+                    .githubUrl(text(n, "github_url"))
+                    .blogUrl(text(n, "blog_url"))
+                    .youtubeUrl(text(n, "youtube_url"))
+                    .portfolioFileUrl(text(n, "portfolio_file_url"))
+                    .portfolioFileTag(jsonString(n, "portfolio_file_tag"))
+                    .bioFileUrl(text(n, "bio_file_url"))
+                    .bioFileTag(jsonString(n, "bio_file_tag"))
+                    .hashtags(jsonString(n, "hashtags"))
+                    .bio(text(n, "bio"))
+                    .grade(EnumMapper.grade(text(n, "grade")))
+                    .build());
+            partnerProfileIdMap.put(jsonId, saved.getId());
+            count++;
+        }
+        log.info("[partner_profile] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Partner Skill (N:M)
+    // ----------------------------------------------------
+    private void seedPartnerSkill() throws Exception {
+        if (partnerSkillRepository.count() > 0) {
+            log.info("[partner_skill] 스킵");
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/partner_skill.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long ppJsonId = n.get("partner_profile_id").asLong();
+            Long skillJsonId = n.get("skill_id").asLong();
+            Long realPpId = partnerProfileIdMap.get(ppJsonId);
+            Long realSkillId = skillIdMap.get(skillJsonId);
+            if (realPpId == null || realSkillId == null) continue;
+            PartnerProfile pp = partnerProfileRepository.findById(realPpId).orElse(null);
+            SkillMaster sm = skillMasterRepository.findById(realSkillId).orElse(null);
+            if (pp == null || sm == null) continue;
+
+            partnerSkillRepository.save(PartnerSkill.builder()
+                    .partnerProfile(pp)
+                    .skill(sm)
+                    .build());
+            count++;
+        }
+        log.info("[partner_skill] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Partner Profile Stats
+    // ----------------------------------------------------
+    private void seedPartnerProfileStats() throws Exception {
+        if (partnerProfileStatsRepository.count() > 0) {
+            log.info("[partner_profile_stats] 스킵");
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/partner_profile_stats.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long ppJsonId = n.get("partner_profile_id").asLong();
+            Long realPpId = partnerProfileIdMap.get(ppJsonId);
+            if (realPpId == null) continue;
+            PartnerProfile pp = partnerProfileRepository.findById(realPpId).orElse(null);
+            if (pp == null) continue;
+
+            partnerProfileStatsRepository.save(PartnerProfileStats.builder()
+                    .partnerProfile(pp)
+                    .experienceYears(intOrNull(n, "experience_years"))
+                    .completedProjects(intOrNull(n, "completed_projects"))
+                    .rating(n.hasNonNull("rating") ? n.get("rating").asDouble() : null)
+                    .responseRate(intOrNull(n, "response_rate"))
+                    .repeatRate(intOrNull(n, "repeat_rate"))
+                    .availabilityDays(intOrNull(n, "availability_days"))
+                    .build());
+            count++;
+        }
+        log.info("[partner_profile_stats] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Client Profile Stats
+    // ----------------------------------------------------
+    private void seedClientProfileStats() throws Exception {
+        if (clientProfileStatsRepository.count() > 0) {
+            log.info("[client_profile_stats] 스킵");
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/client_profile_stats.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long cpJsonId = n.get("client_profile_id").asLong();
+            Long realCpId = clientProfileIdMap.get(cpJsonId);
+            if (realCpId == null) continue;
+            ClientProfile cp = clientProfileRepository.findById(realCpId).orElse(null);
+            if (cp == null) continue;
+
+            clientProfileStatsRepository.save(ClientProfileStats.builder()
+                    .clientProfile(cp)
+                    .completedProjects(intOrNull(n, "completed_projects"))
+                    .postedProjects(intOrNull(n, "posted_projects"))
+                    .rating(n.hasNonNull("rating") ? n.get("rating").asDouble() : null)
+                    .repeatRate(intOrNull(n, "repeat_rate"))
+                    .build());
+            count++;
+        }
+        log.info("[client_profile_stats] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Client Preferred Skill (N:M)
+    // ----------------------------------------------------
+    private void seedClientPreferredSkill() throws Exception {
+        if (clientPreferredSkillRepository.count() > 0) {
+            log.info("[client_preferred_skill] 스킵");
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/client_preferred_skill.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long cpJsonId = n.get("client_profile_id").asLong();
+            Long skillJsonId = n.get("skill_id").asLong();
+            Long realCpId = clientProfileIdMap.get(cpJsonId);
+            Long realSkillId = skillIdMap.get(skillJsonId);
+            if (realCpId == null || realSkillId == null) continue;
+            ClientProfile cp = clientProfileRepository.findById(realCpId).orElse(null);
+            SkillMaster sm = skillMasterRepository.findById(realSkillId).orElse(null);
+            if (cp == null || sm == null) continue;
+
+            clientPreferredSkillRepository.save(ClientPreferredSkill.builder()
+                    .clientProfile(cp)
+                    .skill(sm)
+                    .build());
+            count++;
+        }
+        log.info("[client_preferred_skill] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Projects
+    // ----------------------------------------------------
+    private void seedProjects() throws Exception {
+        if (projectRepository.count() > 0) {
+            log.info("[projects] 스킵");
+            // 매핑 복원: title+user_id 조합으로 (PK가 같은 순서로 들어갔다고 가정)
+            JsonNode arr = readJson("seed/erd/projects.json");
+            List<Project> existing = projectRepository.findAll();
+            int idx = 0;
+            for (JsonNode n : arr) {
+                if (idx >= existing.size()) break;
+                projectIdMap.put(n.get("id").asLong(), existing.get(idx).getId());
+                idx++;
+            }
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/projects.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long jsonId = n.get("id").asLong();
+            Long userJsonId = n.get("user_id").asLong();
+            Long realUserId = userIdMap.get(userJsonId);
+            if (realUserId == null) continue;
+            User user = userRepository.findById(realUserId).orElse(null);
+            if (user == null) continue;
+
+            Project saved = projectRepository.save(Project.builder()
+                    .user(user)
+                    .projectType(EnumMapper.projectType(text(n, "project_type")))
+                    .title(textOr(n, "title", "(제목 없음)"))
+                    .slogan(text(n, "slogan"))
+                    .sloganSub(text(n, "slogan_sub"))
+                    .desc(text(n, "desc"))
+                    .serviceField(text(n, "service_field"))
+                    .grade(EnumMapper.grade(text(n, "grade")))
+                    .workScope(jsonString(n, "work_scope"))
+                    .category(jsonString(n, "category"))
+                    .referenceFileUrl(text(n, "reference_file_url"))
+                    .visibility(EnumMapper.visibility(text(n, "visibility")))
+                    .budgetMin(intOrNull(n, "budget_min"))
+                    .budgetMax(intOrNull(n, "budget_max"))
+                    .budgetAmount(intOrNull(n, "budget_amount"))
+                    .isPartnerFree(boolOrNull(n, "is_partner_free"))
+                    .startDateNegotiable(boolOrNull(n, "start_date_negotiable"))
+                    .startDate(parseDate(text(n, "start_date")))
+                    .durationMonths(intOrNull(n, "duration_months"))
+                    .scheduleNegotiable(boolOrNull(n, "schedule_negotiable"))
+                    .detailContent(text(n, "detail_content"))
+                    .meetingType(EnumMapper.meetingType(text(n, "meeting_type")))
+                    .meetingFreq(EnumMapper.meetingFreq(text(n, "meeting_freq")))
+                    .meetingTools(jsonString(n, "meeting_tools"))
+                    .deadline(parseDate(text(n, "deadline")))
+                    .govSupport(boolOrNull(n, "gov_support"))
+                    .reqTags(jsonString(n, "req_tags"))
+                    .questions(jsonString(n, "questions"))
+                    .itExp(boolOrNull(n, "it_exp"))
+                    .collabPlanning(intOrNull(n, "collab_planning"))
+                    .collabDesign(intOrNull(n, "collab_design"))
+                    .collabPublishing(intOrNull(n, "collab_publishing"))
+                    .collabDev(intOrNull(n, "collab_dev"))
+                    .additionalFileUrl(text(n, "additional_file_url"))
+                    .additionalComment(text(n, "additional_comment"))
+                    .status(EnumMapper.projectStatus(text(n, "status")))
+                    .avatarColor(text(n, "avatar_color"))
+                    .outsourceProjectType(EnumMapper.outsourceProjectType(text(n, "outsource_project_type")))
+                    .readyStatus(EnumMapper.readyStatus(text(n, "ready_status")))
+                    .workStyle(EnumMapper.workStyle(text(n, "work_style")))
+                    .workLocation(text(n, "work_location"))
+                    .workDays(EnumMapper.workDays(text(n, "work_days")))
+                    .workHours(EnumMapper.workHours(text(n, "work_hours")))
+                    .contractMonths(intOrNull(n, "contract_months"))
+                    .monthlyRate(intOrNull(n, "monthly_rate"))
+                    .devStage(EnumMapper.devStage(text(n, "dev_stage")))
+                    .teamSize(EnumMapper.teamSize(text(n, "team_size")))
+                    .currentStacks(jsonString(n, "current_stacks"))
+                    .currentStatus(text(n, "current_status"))
+                    .build());
+            projectIdMap.put(jsonId, saved.getId());
+            count++;
+        }
+        log.info("[projects] {} rows 시드 완료", count);
+    }
+
+    private void seedProjectTags() throws Exception {
+        if (projectTagRepository.count() > 0) {
+            log.info("[project_tags] 스킵");
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/project_tags.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long projJsonId = n.get("project_id").asLong();
+            Long realProjId = projectIdMap.get(projJsonId);
+            if (realProjId == null) continue;
+            Project p = projectRepository.findById(realProjId).orElse(null);
+            if (p == null) continue;
+
+            projectTagRepository.save(ProjectTag.builder()
+                    .project(p)
+                    .tag(textOr(n, "tag", ""))
+                    .build());
+            count++;
+        }
+        log.info("[project_tags] {} rows 시드 완료", count);
+    }
+
+    private void seedProjectSkillMapping() throws Exception {
+        if (projectSkillMappingRepository.count() > 0) {
+            log.info("[project_skill_mapping] 스킵");
+            return;
+        }
+        JsonNode arr = readJson("seed/erd/project_skill_mapping.json");
+        int count = 0;
+        for (JsonNode n : arr) {
+            Long projJsonId = n.get("project_id").asLong();
+            Long skillJsonId = n.get("skill_id").asLong();
+            Long realProjId = projectIdMap.get(projJsonId);
+            Long realSkillId = skillIdMap.get(skillJsonId);
+            if (realProjId == null || realSkillId == null) continue;
+            Project p = projectRepository.findById(realProjId).orElse(null);
+            SkillMaster sm = skillMasterRepository.findById(realSkillId).orElse(null);
+            if (p == null || sm == null) continue;
+
+            Boolean req = boolOrNull(n, "is_required");
+            projectSkillMappingRepository.save(ProjectSkillMapping.builder()
+                    .project(p)
+                    .skill(sm)
+                    .isRequired(req != null ? req : true)
+                    .build());
+            count++;
+        }
+        log.info("[project_skill_mapping] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Helpers
+    // ----------------------------------------------------
+    private JsonNode readJson(String classpathLocation) throws Exception {
+        try (InputStream is = new ClassPathResource(classpathLocation).getInputStream()) {
+            return objectMapper.readTree(is);
+        }
+    }
+
+    private static String text(JsonNode n, String field) {
+        JsonNode v = n.get(field);
+        if (v == null || v.isNull()) return null;
+        return v.asText();
+    }
+
+    private static String textOr(JsonNode n, String field, String def) {
+        String t = text(n, field);
+        return t == null ? def : t;
+    }
+
+    private static Integer intOrNull(JsonNode n, String field) {
+        JsonNode v = n.get(field);
+        if (v == null || v.isNull()) return null;
+        return v.asInt();
+    }
+
+    private static Boolean boolOrNull(JsonNode n, String field) {
+        JsonNode v = n.get(field);
+        if (v == null || v.isNull()) return null;
+        return v.asBoolean();
+    }
+
+    private static String jsonString(JsonNode n, String field) {
+        JsonNode v = n.get(field);
+        if (v == null || v.isNull()) return null;
+        return v.toString();
+    }
+
+    private static LocalDate parseDate(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            return LocalDate.parse(s);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}
+

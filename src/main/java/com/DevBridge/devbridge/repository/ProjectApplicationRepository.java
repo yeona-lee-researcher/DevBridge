@@ -1,0 +1,35 @@
+package com.DevBridge.devbridge.repository;
+
+import com.DevBridge.devbridge.entity.ProjectApplication;
+import com.DevBridge.devbridge.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface ProjectApplicationRepository extends JpaRepository<ProjectApplication, Long> {
+
+    @Query("SELECT a FROM ProjectApplication a " +
+           "LEFT JOIN FETCH a.project p " +
+           "LEFT JOIN FETCH p.user " +
+           "WHERE a.partnerUser = :user " +
+           "ORDER BY a.appliedAt DESC")
+    List<ProjectApplication> findAllByPartnerUser(@Param("user") User user);
+
+    @Query("SELECT a FROM ProjectApplication a " +
+           "LEFT JOIN FETCH a.partnerUser " +
+           "WHERE a.project.id = :projectId " +
+           "ORDER BY a.appliedAt DESC")
+    List<ProjectApplication> findAllByProjectId(@Param("projectId") Long projectId);
+
+    @Query("SELECT a FROM ProjectApplication a " +
+           "LEFT JOIN FETCH a.partnerUser " +
+           "LEFT JOIN FETCH a.project p " +
+           "WHERE p.user = :owner " +
+           "ORDER BY a.appliedAt DESC")
+    List<ProjectApplication> findAllByProjectOwner(@Param("owner") User owner);
+
+    Optional<ProjectApplication> findByProjectIdAndPartnerUser(Long projectId, User partnerUser);
+}
