@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface ProjectModuleRepository extends JpaRepository<ProjectModule, Long> {
     List<ProjectModule> findByProjectId(Long projectId);
     Optional<ProjectModule> findByProjectIdAndModuleKey(Long projectId, String moduleKey);
+    long countByProjectId(Long projectId);
 }

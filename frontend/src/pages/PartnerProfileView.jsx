@@ -4,7 +4,7 @@ import { ChevronLeft, GraduationCap } from "lucide-react";
 import AppHeader from "../components/AppHeader";
 import PartnerBannerCard from "../components/PartnerBannerCard";
 import { profileApi } from "../api/profile.api";
-import { projectsApi, applicationsApi, portfolioApi } from "../api";
+import { projectsApi, applicationsApi, portfolioApi, reviewsApi } from "../api";
 import useStore from "../store/useStore";
 import heroStudent from "../assets/hero_student.png";
 import heroMoney from "../assets/hero_money.png";
@@ -166,7 +166,7 @@ function DonutChart({ segments }) {
 }
 
 /* ── 프로필 홈 섹션 ─────────────────────────────────────── */
-function HomeSection({ partner }) {
+function HomeSection({ partner, reviews }) {
   const rating = partner.rating ?? 4.9;
   const contractCount = partner.contractCount ?? 87;
   const completionRate = partner.completionRate ?? 98;
@@ -274,7 +274,7 @@ function HomeSection({ partner }) {
 
       {/* 후기 카드 */}
       <div style={{ marginTop: 24 }}>
-        {MOCK_REVIEWS_FULL.map((r, i) => <ReviewItem key={i} review={r} />)}
+        {(reviews || []).slice(0, 3).map((r) => <ReviewItem key={r._id ?? r.id} review={r} />)}
       </div>
     </div>
   );
@@ -638,36 +638,27 @@ function PortfolioSection({ partner }) {
 }
 
 /* ── 클라이언트 평가 섹션 ─────────────────────────────────── */
-const MOCK_REVIEWS_FULL = [
-  {
-    type: "유료", title: "AI 연동 웹 서비스 개발",
-    client: "박**", clientBg: "#3B82F6", rating: 5.0, date: "2024.11",
-    tags: ["#개발", "#웹서비스", "#AI연동"],
-    scores: { expertise: 5.0, schedule: 4.8, communication: 5.0, proactivity: 4.9 },
-    budget: "300만원", duration: "2개월",
-    description: "요구사항을 정확히 파악하고 기간 내 완벽하게 납품해주셨습니다. 커뮤니케이션도 뛰어납니다.",
-    review: "프로젝트 기간 내 완벽하게 납품해주셨습니다. 커뮤니케이션도 뛰어나고 재계약 의향 있습니다.",
-  },
-  {
-    type: "유료", title: "사내 관리 시스템 구축",
-    client: "이**", clientBg: "#10B981", rating: 5.0, date: "2024.08",
-    tags: ["#개발", "#시스템구축", "#백엔드"],
-    scores: { expertise: 5.0, schedule: 5.0, communication: 4.8, proactivity: 5.0 },
-    budget: "500만원", duration: "3개월",
-    description: "기술적인 이해도가 높아서 요구사항을 빠르게 반영해주셨어요. 매우 만족스럽습니다.",
-    review: "기술적인 이해도가 높아서 요구사항을 빠르게 반영해주셨어요. 매우 만족스럽습니다.",
-  },
-  {
-    type: "무료", title: "쇼핑몰 리뉴얼 프로젝트",
-    client: "최**", clientBg: "#F59E0B", rating: 4.0, date: "2024.05",
-    tags: ["#디자인", "#개발", "#이커머스"],
-    scores: { expertise: 4.2, schedule: 4.0, communication: 4.5, proactivity: 3.8 },
-    budget: "200만원", duration: "6주",
-    description: "일정에 맞게 개발해주셨고 코드 품질도 우수했습니다. 소소한 수정 요청도 빠르게 처리해주셨습니다.",
-    review: "일정에 맞게 개발해주셨고 코드 품질도 우수했습니다. 소소한 수정 요청도 빠르게 처리해주셨습니다.",
-  },
-];
+const AVATAR_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444", "#EC4899", "#0EA5E9", "#14B8A6"];
 
+/** API 응답(PartnerReviewResponse)을 ReviewItem props 형태로 변환 */
+function mapApiToReview(r) {
+  const name = r.reviewerUsername || "익명";
+  return {
+    _id: r.id,
+    type: null,
+    title: null,
+    client: name.length > 1 ? name.charAt(0) + "**" : name,
+    clientBg: AVATAR_COLORS[Number(r.id || 0) % AVATAR_COLORS.length],
+    rating: r.rating || 0,
+    date: r.createdAt ? r.createdAt.substring(0, 7).replace("-", ".") : null,
+    tags: [],
+    scores: null,
+    budget: null,
+    duration: null,
+    description: null,
+    review: r.content || "(내용 없음)",
+  };
+}
 function ReviewItem({ review }) {
   return (
     <div style={{
@@ -678,67 +669,79 @@ function ReviewItem({ review }) {
       {/* 헤더 */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", flex: 1 }}>
-          <span style={{
-            padding: "3px 10px", borderRadius: 6,
-            background: "#EFF6FF", border: "1px solid #BFDBFE",
-            fontSize: 12, fontWeight: 700, color: "#3B82F6", fontFamily: F, flexShrink: 0,
-          }}>{review.type}</span>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{review.title}</span>
+          {review.type && (
+            <span style={{
+              padding: "3px 10px", borderRadius: 6,
+              background: "#EFF6FF", border: "1px solid #BFDBFE",
+              fontSize: 12, fontWeight: 700, color: "#3B82F6", fontFamily: F, flexShrink: 0,
+            }}>{review.type}</span>
+          )}
+          {review.title && <span style={{ fontSize: 18, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{review.title}</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <div style={{
             width: 34, height: 34, borderRadius: "50%",
-            background: review.clientBg,
+            background: review.clientBg || "#3B82F6",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
-            <span style={{ fontSize: 13, color: "white", fontWeight: 700, fontFamily: F }}>{review.client.charAt(0)}</span>
+            <span style={{ fontSize: 13, color: "white", fontWeight: 700, fontFamily: F }}>{(review.client || "?").charAt(0)}</span>
           </div>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#374151", fontFamily: F, whiteSpace: "nowrap" }}>{review.client}</span>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{review.rating.toFixed(1)}</span>
-          <StarRating rating={review.rating} size={15} />
-          <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, whiteSpace: "nowrap" }}>{review.date} 완료</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{(review.rating || 0).toFixed(1)}</span>
+          <StarRating rating={review.rating || 0} size={15} />
+          {review.date && <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, whiteSpace: "nowrap" }}>{review.date} 완료</span>}
         </div>
       </div>
       {/* 태그 */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        {review.tags.map(tag => (
-          <span key={tag} style={{
-            padding: "4px 10px", borderRadius: 6,
-            background: "#F8FAFC", border: "1px solid #E2E8F0",
-            fontSize: 12, fontWeight: 500, color: "#64748B", fontFamily: F,
-          }}>{tag}</span>
-        ))}
-      </div>
-      {/* 4열 점수 바 */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 20,
-        paddingBottom: 18, marginBottom: 18, borderBottom: "1px solid #F1F5F9",
-      }}>
-        <MiniRatingBar label="전문성"   value={review.scores.expertise}     />
-        <MiniRatingBar label="일정 준수" value={review.scores.schedule}      />
-        <MiniRatingBar label="소통 능력" value={review.scores.communication} />
-        <MiniRatingBar label="적극성"    value={review.scores.proactivity}   />
-      </div>
-      {/* 예산/기간 + 설명 */}
-      <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 24, marginBottom: 18 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", fontFamily: F, marginBottom: 4 }}>BUDGET</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 22, height: 22, borderRadius: 6, background: "#EFF6FF", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>💰</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", fontFamily: F }}>{review.budget}</span>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", fontFamily: F, marginBottom: 4 }}>DURATION</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 22, height: 22, borderRadius: 6, background: "#F0FFF4", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📅</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", fontFamily: F }}>{review.duration}</span>
-            </div>
-          </div>
+      {review.tags && review.tags.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+          {review.tags.map(tag => (
+            <span key={tag} style={{
+              padding: "4px 10px", borderRadius: 6,
+              background: "#F8FAFC", border: "1px solid #E2E8F0",
+              fontSize: 12, fontWeight: 500, color: "#64748B", fontFamily: F,
+            }}>{tag}</span>
+          ))}
         </div>
-        <p style={{ fontSize: 14, color: "#475569", fontFamily: F, lineHeight: 1.75, margin: 0 }}>{review.description}</p>
-      </div>
+      )}
+      {/* 4열 점수 바 (점수 데이터 있을 때만) */}
+      {review.scores && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 20,
+          paddingBottom: 18, marginBottom: 18, borderBottom: "1px solid #F1F5F9",
+        }}>
+          <MiniRatingBar label="전문성"   value={review.scores.expertise}     />
+          <MiniRatingBar label="일정 준수" value={review.scores.schedule}      />
+          <MiniRatingBar label="소통 능력" value={review.scores.communication} />
+          <MiniRatingBar label="적극성"    value={review.scores.proactivity}   />
+        </div>
+      )}
+      {/* 예산/기간 + 설명 (데이터 있을 때만) */}
+      {(review.budget || review.duration || review.description) && (
+        <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 24, marginBottom: 18 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {review.budget && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", fontFamily: F, marginBottom: 4 }}>BUDGET</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 6, background: "#EFF6FF", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>💰</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", fontFamily: F }}>{review.budget}</span>
+                </div>
+              </div>
+            )}
+            {review.duration && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", fontFamily: F, marginBottom: 4 }}>DURATION</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 6, background: "#F0FFF4", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>📅</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", fontFamily: F }}>{review.duration}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          {review.description && <p style={{ fontSize: 14, color: "#475569", fontFamily: F, lineHeight: 1.75, margin: 0 }}>{review.description}</p>}
+        </div>
+      )}
       {/* 인용 후기 */}
       <div style={{ background: "#F8FAFC", borderRadius: 12, padding: "14px 20px", borderLeft: "4px solid #BFDBFE" }}>
         <div style={{ fontSize: 32, fontWeight: 900, color: "#93C5FD", lineHeight: 0.9, marginBottom: 6, fontFamily: F }}>❝</div>
@@ -748,15 +751,17 @@ function ReviewItem({ review }) {
   );
 }
 
-function ReviewsSection({ partner }) {
-  const rating = partner.rating || 4.8;
-  const bars = [
-    { label: "5점", count: 18, ratio: 75 },
-    { label: "4점", count: 5,  ratio: 21 },
-    { label: "3점", count: 1,  ratio: 4  },
-    { label: "2점", count: 0,  ratio: 0  },
-    { label: "1점", count: 0,  ratio: 0  },
-  ];
+function ReviewsSection({ partner, reviews }) {
+  const rating = partner.rating || (reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 4.8);
+  const total = reviews.length;
+  const countByScore = [5, 4, 3, 2, 1].map(s => ({
+    label: `${s}점`,
+    count: reviews.filter(r => Math.round(r.rating) === s).length,
+  }));
+  const bars = countByScore.map(b => ({
+    ...b,
+    ratio: total > 0 ? Math.round((b.count / total) * 100) : 0,
+  }));
 
   return (
     <div>
@@ -765,11 +770,11 @@ function ReviewsSection({ partner }) {
       {/* 별점 요약 */}
       <div style={{ display: "flex", gap: 28, background: "#F8FAFC", borderRadius: 16, padding: "24px 28px", border: "1.5px solid #E2E8F0", marginBottom: 24, alignItems: "center" }}>
         <div style={{ textAlign: "center", minWidth: 80 }}>
-          <div style={{ fontSize: 48, fontWeight: 900, color: "#1E293B", fontFamily: F, lineHeight: 1 }}>{rating}</div>
+          <div style={{ fontSize: 48, fontWeight: 900, color: "#1E293B", fontFamily: F, lineHeight: 1 }}>{typeof rating === "number" ? rating.toFixed(1) : rating}</div>
           <div style={{ display: "flex", justifyContent: "center", gap: 3, marginTop: 6 }}>
-            <StarRating rating={rating} size={16} />
+            <StarRating rating={typeof rating === "number" ? rating : parseFloat(rating)} size={16} />
           </div>
-          <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, marginTop: 4 }}>24건 평가</div>
+          <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, marginTop: 4 }}>{total}건 평가</div>
         </div>
         <div style={{ flex: 1 }}>
           {bars.map(b => (
@@ -786,7 +791,11 @@ function ReviewsSection({ partner }) {
 
       {/* 리뷰 목록 */}
       <div>
-        {MOCK_REVIEWS_FULL.map((r, i) => <ReviewItem key={i} review={r} />)}
+        {total === 0 ? (
+          <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "40px 24px", textAlign: "center", border: "1.5px solid #E2E8F0", color: "#94A3B8", fontSize: 14, fontFamily: F }}>
+            아직 후기가 없습니다.
+          </div>
+        ) : reviews.map((r) => <ReviewItem key={r._id ?? r.id} review={r} />)}
       </div>
     </div>
   );
@@ -967,6 +976,7 @@ export default function PartnerProfileView() {
   const basePartner = state?.partner || {};
   const [detail, setDetail] = useState(null);
   const [portfolioItems, setPortfolioItems] = useState([]);
+  const [reviews, setReviews] = useState([]);
   // 검색 카드의 요약 정보 + 백엔드 detail(skills/careers/educations/certifications/awards/bio/strengthDesc) 머지
   // name 이 비어있거나 숫자만(예: "2991" 같은 ID)인 경우 표시명을 덮어쓰지 않도록 제거 → userId(@hyleeyou) 로 fallback
   const stripBadName = (obj) => {
@@ -1008,6 +1018,17 @@ export default function PartnerProfileView() {
       .catch((err) => console.warn("[PartnerProfileView] 포트폴리오 조회 실패:", err));
     return () => { alive = false; };
   }, [basePartner?.username]);
+
+  // partnerProfileId(=partner.id) 로 후기 조회
+  useEffect(() => {
+    const ppId = basePartner?.id;
+    if (!ppId) return;
+    let alive = true;
+    reviewsApi.byPartner(ppId)
+      .then((data) => { if (alive) setReviews((data || []).map(mapApiToReview)); })
+      .catch((err) => console.warn("[PartnerProfileView] 후기 조회 실패:", err));
+    return () => { alive = false; };
+  }, [basePartner?.id]);
 
   const [activeTab, setActiveTab] = useState("intro");
   const sectionRefs = useRef({});
@@ -1106,13 +1127,13 @@ export default function PartnerProfileView() {
                 ref={el => sectionRefs.current[tab.key] = el}
                 style={{ background: "white", borderRadius: 20, padding: "20px 28px", border: "1.5px solid #E2E8F0", boxShadow: "0 2px 10px rgba(0,0,0,0.04)", scrollMarginTop: 90 }}
               >
-                {tab.key === "home"      && <HomeSection partner={partner} />}
+                {tab.key === "home"      && <HomeSection partner={partner} reviews={reviews} />}
                 {tab.key === "intro"     && <IntroSection partner={partner} />}
                 {tab.key === "skills"    && <SkillsSection partner={partner} />}
                 {tab.key === "career"    && <CareerSection partner={partner} />}
                 {tab.key === "education" && <EducationSection partner={partner} />}
                 {tab.key === "portfolio" && <PortfolioSection partner={partner} />}
-                {tab.key === "reviews"   && <ReviewsSection partner={partner} />}
+                {tab.key === "reviews"   && <ReviewsSection partner={partner} reviews={reviews} />}
                 {tab.key === "projects"  && <ProjectsSection partner={partner} />}
               </section>
             ))}

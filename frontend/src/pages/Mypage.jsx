@@ -8,6 +8,7 @@ import partnerDefault from "../assets/hero_default.png";
 import clientDefault from "../assets/hero_check.png";
 import { bankApi } from "../api/bank.api";
 import { profileApi } from "../api/profile.api";
+import { paymentMethodsApi } from "../api/paymentMethods.api";
 
 const BASE_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -431,6 +432,240 @@ function BankCard({ onToast }) {
     </div>
   );
 }
+
+/* ── 카드 결제수단 카드 (Client + Partner 공통) ── */
+function PaymentMethodsCard({ onToast }) {
+  const [list, setList]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const reload = () => {
+    setLoading(true);
+    paymentMethodsApi.list()
+      .then(setList)
+      .catch(() => setList([]))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { reload(); }, []);
+
+  const handleSetDefault = async (id) => {
+    try { await paymentMethodsApi.setDefault(id); reload(); onToast?.("기본 카드가 변경되었습니다."); }
+    catch (e) { onToast?.(e?.response?.data?.message || "변경 실패"); }
+  };
+  const handleRemove = async (id) => {
+    if (!window.confirm("이 카드를 삭제할까요?")) return;
+    try { await paymentMethodsApi.remove(id); reload(); onToast?.("카드가 삭제되었습니다."); }
+    catch (e) { onToast?.(e?.response?.data?.message || "삭제 실패"); }
+  };
+
+  return (
+    <div style={{
+      background:"white", borderRadius:24, padding:32,
+      boxShadow:"0 4px 20px rgba(0,0,0,0.06)", border:"1px solid #F3F4F6",
+    }}>
+      <h2 style={{
+        fontSize:20, fontWeight:800, color:"#1F2937", marginBottom:6,
+        display:"flex", alignItems:"center", gap:10, fontFamily:BASE_FONT,
+      }}>
+        💳 결제 카드 관리
+      </h2>
+      <p style={{ marginTop:0, marginBottom:20, fontSize:13, color:"#6B7280", fontFamily:BASE_FONT }}>
+        진행 프로젝트 에스크로 결제에 사용됩니다. (PCI 마스킹 — 카드 끝 4자리만 보관)
+      </p>
+
+      {loading && (
+        <div style={{ padding:24, textAlign:"center", color:"#9CA3AF", fontFamily:BASE_FONT }}>
+          불러오는 중…
+        </div>
+      )}
+
+      {!loading && list.length === 0 && (
+        <div style={{
+          padding:"28px 16px", textAlign:"center", color:"#6B7280",
+          background:"#F9FAFB", borderRadius:12, marginBottom:16, fontFamily:BASE_FONT, fontSize:14,
+        }}>
+          등록된 카드가 없습니다.
+        </div>
+      )}
+
+      {!loading && list.map((c) => (
+        <div key={c.id} style={{
+          display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"14px 16px", marginBottom:10, borderRadius:14,
+          background: c.isDefault ? "linear-gradient(135deg,#EFF6FF,#E0E7FF)" : "#F9FAFB",
+          border: c.isDefault ? "1px solid #C7D2FE" : "1px solid #E5E7EB",
+          fontFamily:BASE_FONT,
+        }}>
+          <div>
+            <div style={{ fontSize:14, fontWeight:700, color:"#1F2937" }}>
+              {c.brand} •••• {c.last4}
+              {c.isDefault && (
+                <span style={{
+                  marginLeft:8, padding:"2px 8px", borderRadius:8,
+                  background:"#3B82F6", color:"white", fontSize:11, fontWeight:700,
+                }}>기본</span>
+              )}
+            </div>
+            <div style={{ fontSize:12, color:"#6B7280", marginTop:3 }}>
+              {c.holderName} · {String(c.expMonth).padStart(2,"0")}/{String(c.expYear).slice(-2)}
+              {c.nickname ? ` · ${c.nickname}` : ""}
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:6 }}>
+            {!c.isDefault && (
+              <button onClick={() => handleSetDefault(c.id)} style={{
+                padding:"6px 12px", borderRadius:8, border:"1px solid #E5E7EB",
+                background:"white", fontSize:12, color:"#374151", fontWeight:600,
+                cursor:"pointer", fontFamily:BASE_FONT,
+              }}>기본 설정</button>
+            )}
+            <button onClick={() => handleRemove(c.id)} style={{
+              padding:"6px 12px", borderRadius:8, border:"1px solid #FCA5A5",
+              background:"white", fontSize:12, color:"#DC2626", fontWeight:600,
+              cursor:"pointer", fontFamily:BASE_FONT,
+            }}>삭제</button>
+          </div>
+        </div>
+      ))}
+
+      <button onClick={() => setShowAdd(true)} style={{
+        width:"100%", padding:"14px 0", marginTop:8, borderRadius:14,
+        border:"1px dashed #93C5FD", background:"#F0F9FF",
+        fontSize:14, fontWeight:700, color:"#2563EB",
+        cursor:"pointer", fontFamily:BASE_FONT,
+      }}>
+        + 새 카드 등록
+      </button>
+
+      {showAdd && (
+        <CardRegisterModal
+          onClose={() => setShowAdd(false)}
+          onSuccess={(created) => { setShowAdd(false); reload(); onToast?.("✓ 카드가 등록되었습니다."); }}
+          onToast={onToast}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── 카드 등록 모달 ── */
+function CardRegisterModal({ onClose, onSuccess, onToast }) {
+  const [num, setNum]           = useState("");      // "1234 5678 9012 3456"
+  const [holder, setHolder]     = useState("");
+  const [exp, setExp]           = useState("");      // "MM/YY"
+  const [cvc, setCvc]           = useState("");
+  const [nickname, setNickname] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const formatNum = (raw) => raw.replace(/\D/g,"").slice(0,19).replace(/(.{4})/g, "$1 ").trim();
+  const formatExp = (raw) => {
+    const d = raw.replace(/\D/g,"").slice(0,4);
+    if (d.length < 3) return d;
+    return d.slice(0,2) + "/" + d.slice(2);
+  };
+
+  const luhnOk = (digits) => {
+    if (digits.length < 13) return false;
+    let sum = 0, alt = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let n = parseInt(digits[i], 10);
+      if (alt) { n *= 2; if (n > 9) n -= 9; }
+      sum += n; alt = !alt;
+    }
+    return sum % 10 === 0;
+  };
+
+  const handleSubmit = async () => {
+    const digits = num.replace(/\D/g,"");
+    const expDigits = exp.replace(/\D/g,"");
+    if (digits.length < 13 || digits.length > 19)
+                                   return onToast?.("카드 번호는 13~19자리여야 합니다.");
+    if (!holder.trim())            return onToast?.("카드 소유자명을 입력해 주세요.");
+    if (expDigits.length !== 4)    return onToast?.("유효기간을 MM/YY 형식으로 입력해 주세요.");
+    if (cvc.length < 3)            return onToast?.("CVC를 입력해 주세요.");
+    const month = parseInt(expDigits.slice(0,2), 10);
+    const yr2   = parseInt(expDigits.slice(2), 10);
+    const year  = 2000 + yr2;
+    if (month < 1 || month > 12)   return onToast?.("유효기간 월(MM)이 올바르지 않습니다.");
+
+    setSubmitting(true);
+    try {
+      const created = await paymentMethodsApi.create({
+        number: digits, holderName: holder.trim(),
+        expMonth: month, expYear: year,
+        cvc, nickname: nickname.trim() || null,
+      });
+      onSuccess?.(created);
+    } catch (e) {
+      onToast?.(e?.response?.data?.message || "카드 등록에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1100,
+      display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:BASE_FONT,
+    }} onClick={onClose}>
+      <div style={{
+        background:"white", borderRadius:20, padding:28, width:"100%", maxWidth:440,
+        boxShadow:"0 20px 60px rgba(0,0,0,0.3)",
+      }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ margin:0, marginBottom:6, fontSize:20, fontWeight:800, color:"#1F2937" }}>
+          새 카드 등록
+        </h3>
+        <p style={{ margin:0, marginBottom:20, fontSize:12, color:"#9CA3AF" }}>
+          카드 정보는 PCI 규정에 따라 끝 4자리/브랜드만 저장됩니다.
+        </p>
+
+        <label style={LABEL_STYLE}>카드 번호</label>
+        <input value={num} onChange={(e) => setNum(formatNum(e.target.value))}
+          placeholder="1234 5678 9012 3456" inputMode="numeric"
+          style={{ ...FIELD_STYLE, marginBottom:14 }} />
+
+        <label style={LABEL_STYLE}>카드 소유자명</label>
+        <input value={holder} onChange={(e) => setHolder(e.target.value.toUpperCase())}
+          placeholder="HONG GIL DONG"
+          style={{ ...FIELD_STYLE, marginBottom:14 }} />
+
+        <div style={{ display:"flex", gap:12, marginBottom:14 }}>
+          <div style={{ flex:1 }}>
+            <label style={LABEL_STYLE}>유효기간</label>
+            <input value={exp} onChange={(e) => setExp(formatExp(e.target.value))}
+              placeholder="MM/YY" inputMode="numeric" style={FIELD_STYLE} />
+          </div>
+          <div style={{ flex:1 }}>
+            <label style={LABEL_STYLE}>CVC</label>
+            <input value={cvc} onChange={(e) => setCvc(e.target.value.replace(/\D/g,"").slice(0,4))}
+              placeholder="123" inputMode="numeric" style={FIELD_STYLE} />
+          </div>
+        </div>
+
+        <label style={LABEL_STYLE}>별칭 (선택)</label>
+        <input value={nickname} onChange={(e) => setNickname(e.target.value)}
+          placeholder="예: 메인 카드"
+          style={{ ...FIELD_STYLE, marginBottom:24 }} />
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} disabled={submitting} style={{
+            flex:1, padding:"14px 0", borderRadius:12, border:"1px solid #E5E7EB",
+            background:"white", color:"#374151", fontSize:14, fontWeight:600,
+            cursor: submitting ? "not-allowed" : "pointer", fontFamily:BASE_FONT,
+          }}>취소</button>
+          <button onClick={handleSubmit} disabled={submitting} style={{
+            flex:1.4, padding:"14px 0", borderRadius:12, border:"none",
+            background:"linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)",
+            color:"white", fontSize:14, fontWeight:700,
+            cursor: submitting ? "not-allowed" : "pointer", fontFamily:BASE_FONT,
+            opacity: submitting ? 0.7 : 1,
+          }}>{submitting ? "등록 중..." : "카드 등록"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /* ── 입학/졸업 년월 선택 픽커 ── */
 function YearMonthPicker({ value, onChange, disabled }) {
@@ -1368,8 +1603,11 @@ function Mypage() {
             </div>
           </div>
 
-          {/* ── 오른쪽: 계좌 등록 카드 ── */}
-          <BankCard onToast={showToast} />
+          {/* ── 오른쪽: 계좌 등록 카드 + 카드 결제수단 ── */}
+          <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
+            <BankCard onToast={showToast} />
+            <PaymentMethodsCard onToast={showToast} />
+          </div>
 
         </div>
 

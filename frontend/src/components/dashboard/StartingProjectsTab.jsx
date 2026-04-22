@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { projectsApi } from "../../api";
+import { projectsApi, applicationsApi } from "../../api";
 
 /**
  * 대시보드 "시작 전 프로젝트" 탭.
- * - GET /api/projects/me 호출 → 본인이 등록한 프로젝트 중 RECRUITING/모집중/시작 예정 카드 노출
- * - 상세보기: 모달로 프로젝트 상세 정보 (예상 견적/기간/스택/모집 요건 등) 표시
- * - 수정: ProjectRegister 페이지로 ?id={id}&edit=1 진입 → 기존 데이터 로드 후 편집
- * - 새 프로젝트 등록하기: 상단 네비 "프로젝트 등록" 탭(/project_register)으로 이동
+ * - 두 섹션으로 분리:
+ *   1) 계약 진행 중 프로젝트 (IN_PROGRESS) — 세부 계약 협의 미팅 중인 프로젝트
+ *   2) 계약 전 프로젝트 (RECRUITING) — 모집 중인 프로젝트
+ * - DB에서 GET /api/projects/me 호출 → 본인이 등록한 프로젝트 status별 분리
+ * - Partner 역할은 추가로 applicationsApi.myList()로 본인이 수주한 진행 중 프로젝트도 가져옴
  */
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -17,7 +18,8 @@ const SECONDARY_HOVER = "#BFDBFE";
 
 export default function StartingProjectsTab({ role = "partner" }) {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState([]);
+  const [inContractProjects, setInContractProjects] = useState([]);
+  const [preContractProjects, setPreContractProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [detailTarget, setDetailTarget] = useState(null);
@@ -25,70 +27,102 @@ export default function StartingProjectsTab({ role = "partner" }) {
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    projectsApi
-      .myList()
-      .then((list) => {
+
+    const loadData = async () => {
+      try {
+        // 본인이 등록한 프로젝트 전체
+        const myProjects = await projectsApi.myList();
         if (!mounted) return;
-        const filtered = (list || []).filter((p) => {
-          const s = (p.status || "").toString();
-          return s === "모집중" || s === "RECRUITING" || s === "시작 예정";
-        });
-        setProjects(filtered);
-      })
-      .catch((e) => {
+
+        const isInProgress = (s) => {
+          const x = (s || "").toString();
+          return x === "IN_PROGRESS" || x === "진행중" || x === "진행 중" || x === "계약 진행 중";
+        };
+        const isRecruiting = (s) => {
+          const x = (s || "").toString();
+          return x === "RECRUITING" || x === "모집중" || x === "시작 예정";
+        };
+
+        const myInProgress = (myProjects || []).filter((p) => isInProgress(p.status));
+        const myRecruiting = (myProjects || []).filter((p) => isRecruiting(p.status));
+
+        // Partner 역할: 본인이 지원/수주한 프로젝트 중 진행 중인 것도 포함
+        let acceptedInProgress = [];
+        if (role === "partner") {
+          try {
+            const apps = await applicationsApi.myList();
+            const acceptedAppProjects = (apps || [])
+              .filter((a) => {
+                const st = (a.status || "").toString();
+                return st === "ACCEPTED" || st === "CONTRACTED" || st === "IN_PROGRESS";
+              })
+              .map((a) => a.project || a)
+              .filter(Boolean);
+            // 중복 제거
+            const seenIds = new Set(myInProgress.map((p) => p.id));
+            acceptedInProgress = acceptedAppProjects.filter((p) => p && !seenIds.has(p.id));
+          } catch (e) {
+            console.warn("[StartingProjectsTab] applications fetch failed:", e?.message);
+          }
+        }
+
+        if (!mounted) return;
+        setInContractProjects([...myInProgress, ...acceptedInProgress]);
+        setPreContractProjects(myRecruiting);
+      } catch (e) {
         if (!mounted) return;
         setError(e?.response?.data?.message || e?.message || "불러오기 실패");
-      })
-      .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
-  }, []);
+
+    loadData();
+    return () => { mounted = false; };
+  }, [role]);
 
   const handleNewProject = () => {
     navigate("/project_register");
   };
 
+  const handleDelete = async (id, title) => {
+    if (!window.confirm(`'${title || "(제목 없음)"}' 프로젝트를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    try {
+      await projectsApi.remove(id);
+      setPreContractProjects((prev) => prev.filter((x) => x.id !== id));
+      setInContractProjects((prev) => prev.filter((x) => x.id !== id));
+    } catch (e) {
+      alert(e?.response?.data?.message || "삭제에 실패했습니다.");
+    }
+  };
+
   return (
     <div>
-      {/* ── 그라데이션 타이틀 헤더 (대시보드 통일 디자인) ── */}
+      {/* ── 그라데이션 타이틀 헤더 ── */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 16 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1
             style={{
-              fontSize: 34,
-              fontWeight: 900,
-              margin: "0 0 8px",
-              fontFamily: F,
-              background: PRIMARY_GRAD,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              letterSpacing: "-0.5px",
-              lineHeight: 1.2,
+              fontSize: 34, fontWeight: 900, margin: "0 0 8px", fontFamily: F,
+              background: PRIMARY_GRAD, WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent", backgroundClip: "text",
+              letterSpacing: "-0.5px", lineHeight: 1.2,
             }}
           >
             시작 전 프로젝트
           </h1>
           <p style={{ fontSize: 14, color: "#64748B", margin: 0, fontFamily: F, lineHeight: 1.6 }}>
-            직접 등록하신 프로젝트 중 모집/시작 전 단계의 프로젝트입니다.
+            계약 협의 단계 및 모집 단계의 프로젝트를 한곳에서 관리하세요.
           </p>
         </div>
         <button
           onClick={handleNewProject}
           style={{
-            padding: "12px 22px",
-            borderRadius: 999,
-            border: "none",
-            background: PRIMARY_GRAD,
-            color: "white",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: F,
+            padding: "12px 22px", borderRadius: 999, border: "none",
+            background: PRIMARY_GRAD, color: "white", fontSize: 13, fontWeight: 700,
+            cursor: "pointer", fontFamily: F,
             boxShadow: "0 4px 14px rgba(99,102,241,0.30)",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
+            whiteSpace: "nowrap", flexShrink: 0,
           }}
         >
           + 새 프로젝트 등록하기
@@ -102,56 +136,124 @@ export default function StartingProjectsTab({ role = "partner" }) {
       )}
 
       {error && !loading && (
-        <div
-          style={{
-            padding: 24,
-            borderRadius: 12,
-            background: "#FEF2F2",
-            border: "1px solid #FECACA",
-            color: "#B91C1C",
-            fontFamily: F,
-            fontSize: 13,
-          }}
-        >
+        <div style={{
+          padding: 24, borderRadius: 12, background: "#FEF2F2",
+          border: "1px solid #FECACA", color: "#B91C1C", fontFamily: F, fontSize: 13,
+        }}>
           프로젝트 목록을 불러오지 못했습니다: {error}
         </div>
       )}
 
-      {!loading && !error && projects.length === 0 && (
-        <EmptyState role={role} onCreate={handleNewProject} />
-      )}
+      {!loading && !error && (
+        <>
+          {/* ── 섹션 1: 계약 진행 중 프로젝트 ── */}
+          <SectionHeader
+            icon="🤝"
+            title="계약 진행 중 프로젝트"
+            subtitle="세부 계약 협의 미팅을 진행 중인 프로젝트입니다."
+            count={inContractProjects.length}
+            accent="#3B82F6"
+            accentBg="#EFF6FF"
+          />
+          {inContractProjects.length === 0 ? (
+            <SectionEmpty message="현재 계약 협의 중인 프로젝트가 없어요." />
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 16, marginBottom: 32,
+            }}>
+              {inContractProjects.map((p) => (
+                <ProjectCard
+                  key={`in-${p.id}`}
+                  project={p}
+                  variant="in_contract"
+                  onOpenDetail={() => setDetailTarget(p.id)}
+                  onEdit={() => navigate(`/project_register?id=${p.id}&edit=1`)}
+                  onDelete={() => handleDelete(p.id, p.title)}
+                />
+              ))}
+            </div>
+          )}
 
-      {!loading && projects.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {projects.map((p) => (
-            <ProjectCard
-              key={p.id}
-              project={p}
-              onOpenDetail={() => setDetailTarget(p.id)}
-              onEdit={() => navigate(`/project_register?id=${p.id}&edit=1`)}
-              onDelete={async () => {
-                if (!window.confirm(`'${p.title || "(제목 없음)"}' 프로젝트를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
-                try {
-                  await projectsApi.remove(p.id);
-                  setProjects((prev) => prev.filter((x) => x.id !== p.id));
-                } catch (e) {
-                  alert(e?.response?.data?.message || "삭제에 실패했습니다.");
-                }
-              }}
-            />
-          ))}
-        </div>
+          {/* ── 섹션 2: 계약 전 프로젝트 ── */}
+          <SectionHeader
+            icon="📋"
+            title="계약 전 프로젝트"
+            subtitle="직접 등록하신 프로젝트 중 모집/시작 전 단계의 프로젝트입니다."
+            count={preContractProjects.length}
+            accent="#8B5CF6"
+            accentBg="#F5F3FF"
+          />
+          {preContractProjects.length === 0 ? (
+            <EmptyState role={role} onCreate={handleNewProject} />
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 16,
+            }}>
+              {preContractProjects.map((p) => (
+                <ProjectCard
+                  key={`pre-${p.id}`}
+                  project={p}
+                  variant="pre_contract"
+                  onOpenDetail={() => setDetailTarget(p.id)}
+                  onEdit={() => navigate(`/project_register?id=${p.id}&edit=1`)}
+                  onDelete={() => handleDelete(p.id, p.title)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {detailTarget != null && (
         <ProjectDetailModal projectId={detailTarget} onClose={() => setDetailTarget(null)} />
       )}
+    </div>
+  );
+}
+
+/* ─── 섹션 헤더 ───────────────────────── */
+function SectionHeader({ icon, title, subtitle, count, accent, accentBg }) {
+  return (
+    <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: 10, background: accentBg,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 18, flexShrink: 0,
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1E293B", margin: 0, fontFamily: F }}>
+            {title}
+          </h2>
+          <span style={{
+            padding: "2px 9px", borderRadius: 99, background: accent, color: "white",
+            fontSize: 11, fontWeight: 700, fontFamily: F,
+          }}>
+            {count}
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: "#64748B", margin: "2px 0 0", fontFamily: F }}>
+          {subtitle}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── 섹션이 비어있을 때 (작은 박스) ───────────────────────── */
+function SectionEmpty({ message }) {
+  return (
+    <div style={{
+      padding: "28px 20px", borderRadius: 12, border: "1.5px dashed #E2E8F0",
+      background: "#FAFBFC", textAlign: "center", marginBottom: 32, fontFamily: F,
+    }}>
+      <div style={{ fontSize: 13, color: "#94A3B8" }}>{message}</div>
     </div>
   );
 }
@@ -198,8 +300,12 @@ function EmptyState({ role, onCreate }) {
   );
 }
 
-function ProjectCard({ project, onOpenDetail, onEdit, onDelete }) {
-  const status = project.status || "모집중";
+function ProjectCard({ project, onOpenDetail, onEdit, onDelete, variant = "pre_contract" }) {
+  const rawStatus = project.status || "모집중";
+  const isInContract = variant === "in_contract";
+  const status = isInContract ? "계약 협의 중" : rawStatus;
+  const badgeBg = isInContract ? "#DCFCE7" : "#DBEAFE";
+  const badgeColor = isInContract ? "#15803D" : "#2563EB";
   const tags = (project.tags || project.skillSet || []).slice(0, 4);
   const period = project.period || (project.durationDays ? `${Math.round(project.durationDays / 30)}개월` : "협의");
 
@@ -230,8 +336,8 @@ function ProjectCard({ project, onOpenDetail, onEdit, onDelete }) {
           style={{
             padding: "3px 10px",
             borderRadius: 999,
-            background: "#DBEAFE",
-            color: "#2563EB",
+            background: badgeBg,
+            color: badgeColor,
             fontSize: 11,
             fontWeight: 700,
             fontFamily: F,

@@ -1,0 +1,422 @@
+package com.DevBridge.devbridge.service;
+
+import com.DevBridge.devbridge.dto.*;
+import com.DevBridge.devbridge.entity.*;
+import com.DevBridge.devbridge.repository.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+/**
+ * 진행 프로젝트 대시보드 (마일스톤 / 에스크로 / 첨부 / 미팅 / 알림 통합).
+ * Mock 결제 + 상태머신 포함.
+ */
+@Service
+@RequiredArgsConstructor
+public class ProgressDashboardService {
+
+    private final ProjectRepository projectRepository;
+    private final ProjectMilestoneRepository milestoneRepository;
+    private final ProjectEscrowRepository escrowRepository;
+    private final ProjectAttachmentRepository attachmentRepository;
+    private final ProjectMeetingRepository meetingRepository;
+    private final PaymentMethodRepository paymentMethodRepository;
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
+    private final ProjectApplicationRepository applicationRepository;
+
+    // ==================== Milestones ====================
+
+    @Transactional(readOnly = true)
+    public List<MilestoneResponse> listMilestones(Long projectId) {
+        ensureMember(projectId);
+        return milestoneRepository.findByProjectIdOrderBySeqAsc(projectId)
+                .stream().map(MilestoneResponse::from).toList();
+    }
+
+    @Transactional
+    public MilestoneResponse createMilestone(Long projectId, MilestoneCreateRequest req) {
+        ensureClient(projectId);
+        if (req.getTitle() == null || req.getTitle().isBlank())
+            throw new IllegalArgumentException("마일스톤 제목을 입력해 주세요.");
+        if (req.getAmount() == null || req.getAmount() <= 0)
+            throw new IllegalArgumentException("금액은 1원 이상이어야 합니다.");
+
+        int seq = req.getSeq() != null ? req.getSeq()
+                : milestoneRepository.findByProjectIdOrderBySeqAsc(projectId).size() + 1;
+
+        ProjectMilestone m = ProjectMilestone.builder()
+                .projectId(projectId)
+                .seq(seq)
+                .title(req.getTitle())
+                .description(req.getDescription())
+                .completionCriteria(req.getCompletionCriteria())
+                .amount(req.getAmount())
+                .startDate(req.getStartDate())
+                .endDate(req.getEndDate())
+                .status(ProjectMilestone.MilestoneStatus.PENDING)
+                .build();
+        return MilestoneResponse.from(milestoneRepository.save(m));
+    }
+
+    @Transactional
+    public MilestoneResponse submit(Long projectId, Long milestoneId, MilestoneSubmitRequest req) {
+        ensurePartner(projectId);
+        ProjectMilestone m = milestoneRepository.findByIdAndProjectId(milestoneId, projectId)
+                .orElseThrow(() -> new IllegalArgumentException("마일스톤을 찾을 수 없습니다."));
+
+        if (m.getStatus() != ProjectMilestone.MilestoneStatus.IN_PROGRESS
+                && m.getStatus() != ProjectMilestone.MilestoneStatus.REVISION_REQUESTED) {
+            throw new IllegalStateException("제출 가능한 상태가 아닙니다. (현재: " + m.getStatus() + ")");
+        }
+
+        m.setSubmittedAt(LocalDateTime.now());
+        m.setSubmissionNote(req == null ? null : req.getNote());
+        m.setSubmissionFileUrl(req == null ? null : req.getFileUrl());
+        m.setStatus(ProjectMilestone.MilestoneStatus.SUBMITTED);
+        milestoneRepository.save(m);
+
+        // 알림 → 클라이언트 (프로젝트 소유자)
+        Project p = projectRepository.findById(projectId).orElse(null);
+        if (p != null && p.getUser() != null) {
+            createNotification(p.getUser(),
+                    Notification.NotificationType.MILESTONE_SUBMITTED,
+                    "마일스톤 제출됨",
+                    String.format("'%s' 마일스톤이 제출되었습니다. 검토해 주세요.", m.getTitle()),
+                    "milestone", m.getId());
+        }
+        return MilestoneResponse.from(m);
+    }
+
+    @Transactional
+    public MilestoneResponse approve(Long projectId, Long milestoneId) {
+        ensureClient(projectId);
+        ProjectMilestone m = milestoneRepository.findByIdAndProjectId(milestoneId, projectId)
+                .orElseThrow(() -> new IllegalArgumentException("마일스톤을 찾을 수 없습니다."));
+        if (m.getStatus() != ProjectMilestone.MilestoneStatus.SUBMITTED) {
+            throw new IllegalStateException("제출된 상태에서만 승인할 수 있습니다.");
+        }
+        m.setApprovedAt(LocalDateTime.now());
+        m.setStatus(ProjectMilestone.MilestoneStatus.APPROVED);
+        milestoneRepository.save(m);
+
+        // 매칭된 에스크로 자동 정산
+        escrowRepository.findByMilestoneId(milestoneId).ifPresent(e -> {
+            if (e.getStatus() == ProjectEscrow.EscrowStatus.DEPOSITED) {
+                e.setStatus(ProjectEscrow.EscrowStatus.RELEASED);
+                e.setReleasedAt(LocalDateTime.now());
+                escrowRepository.save(e);
+            }
+        });
+
+        // 모든 마일스톤 APPROVED 면 프로젝트 COMPLETED
+        long remain = milestoneRepository.countByProjectIdAndStatusNot(projectId,
+                ProjectMilestone.MilestoneStatus.APPROVED);
+        if (remain == 0) {
+            Project p = projectRepository.findById(projectId).orElse(null);
+            if (p != null) {
+                p.setStatus(Project.ProjectStatus.COMPLETED);
+                projectRepository.save(p);
+            }
+        }
+
+        // 알림 → 파트너 (에스크로 payee)
+        ProjectEscrow esc = escrowRepository.findByMilestoneId(milestoneId).orElse(null);
+        if (esc != null) {
+            userRepository.findById(esc.getPayeeUserId()).ifPresent(payee -> {
+                createNotification(payee,
+                        Notification.NotificationType.MILESTONE_APPROVED,
+                        "마일스톤 승인됨",
+                        String.format("'%s' 마일스톤이 승인되었습니다. 정산이 진행됩니다.", m.getTitle()),
+                        "milestone", m.getId());
+            });
+        }
+        return MilestoneResponse.from(m);
+    }
+
+    @Transactional
+    public MilestoneResponse requestRevision(Long projectId, Long milestoneId, String reason) {
+        ensureClient(projectId);
+        ProjectMilestone m = milestoneRepository.findByIdAndProjectId(milestoneId, projectId)
+                .orElseThrow(() -> new IllegalArgumentException("마일스톤을 찾을 수 없습니다."));
+        if (m.getStatus() != ProjectMilestone.MilestoneStatus.SUBMITTED) {
+            throw new IllegalStateException("제출된 상태에서만 재요청할 수 있습니다.");
+        }
+        m.setStatus(ProjectMilestone.MilestoneStatus.REVISION_REQUESTED);
+        m.setRevisionReason(reason);
+        milestoneRepository.save(m);
+
+        ProjectEscrow esc = escrowRepository.findByMilestoneId(milestoneId).orElse(null);
+        if (esc != null) {
+            userRepository.findById(esc.getPayeeUserId()).ifPresent(payee -> {
+                createNotification(payee,
+                        Notification.NotificationType.MILESTONE_REVISION_REQUESTED,
+                        "수정 요청됨",
+                        String.format("'%s' 마일스톤에 수정 요청이 접수되었습니다.%s",
+                                m.getTitle(),
+                                (reason == null || reason.isBlank() ? "" : " 사유: " + reason)),
+                        "milestone", m.getId());
+            });
+        }
+        return MilestoneResponse.from(m);
+    }
+
+    @Transactional
+    public MilestoneResponse cancelRevision(Long projectId, Long milestoneId) {
+        ensureClient(projectId);
+        ProjectMilestone m = milestoneRepository.findByIdAndProjectId(milestoneId, projectId)
+                .orElseThrow(() -> new IllegalArgumentException("마일스톤을 찾을 수 없습니다."));
+        if (m.getStatus() != ProjectMilestone.MilestoneStatus.REVISION_REQUESTED) {
+            throw new IllegalStateException("수정 요청 상태에서만 철회할 수 있습니다.");
+        }
+        m.setStatus(ProjectMilestone.MilestoneStatus.SUBMITTED);
+        m.setRevisionReason(null);
+        milestoneRepository.save(m);
+        return MilestoneResponse.from(m);
+    }
+
+    // ==================== Escrows ====================
+
+    @Transactional(readOnly = true)
+    public List<EscrowResponse> listEscrows(Long projectId) {
+        ensureMember(projectId);
+        return escrowRepository.findByProjectIdOrderByIdAsc(projectId)
+                .stream().map(EscrowResponse::from).toList();
+    }
+
+    @Transactional
+    public EscrowResponse createEscrow(Long projectId, Long milestoneId, Long amount, Long payeeUserId) {
+        Long clientId = ensureClient(projectId);
+        if (amount == null || amount <= 0) throw new IllegalArgumentException("금액이 올바르지 않습니다.");
+        if (payeeUserId == null) throw new IllegalArgumentException("파트너 정보가 필요합니다.");
+        ProjectEscrow e = ProjectEscrow.builder()
+                .projectId(projectId)
+                .milestoneId(milestoneId)
+                .amount(amount)
+                .payerUserId(clientId)
+                .payeeUserId(payeeUserId)
+                .status(ProjectEscrow.EscrowStatus.PENDING)
+                .build();
+        return EscrowResponse.from(escrowRepository.save(e));
+    }
+
+    @Transactional
+    public EscrowResponse payMock(Long projectId, Long escrowId, EscrowPayMockRequest req) {
+        Long clientId = ensureClient(projectId);
+        ProjectEscrow e = escrowRepository.findById(escrowId)
+                .orElseThrow(() -> new IllegalArgumentException("에스크로 결제 항목을 찾을 수 없습니다."));
+        if (!Objects.equals(e.getProjectId(), projectId))
+            throw new IllegalArgumentException("프로젝트가 일치하지 않습니다.");
+        if (!Objects.equals(e.getPayerUserId(), clientId))
+            throw new IllegalArgumentException("결제 권한이 없습니다.");
+        if (e.getStatus() != ProjectEscrow.EscrowStatus.PENDING)
+            throw new IllegalStateException("이미 처리된 결제입니다. (현재: " + e.getStatus() + ")");
+        if (req == null || req.getPaymentMethodId() == null)
+            throw new IllegalArgumentException("결제 수단을 선택해 주세요.");
+
+        User payer = userRepository.findById(clientId).orElseThrow();
+        PaymentMethod pm = paymentMethodRepository.findByIdAndUser(req.getPaymentMethodId(), payer)
+                .orElseThrow(() -> new IllegalArgumentException("등록된 결제 수단이 아닙니다."));
+
+        if (Boolean.TRUE.equals(req.getSimulateFail())) {
+            throw new IllegalStateException("결제 승인 거절 (시뮬레이션)");
+        }
+
+        // Mock 처리: 약간의 딜레이를 두는 대신 즉시 처리
+        e.setStatus(ProjectEscrow.EscrowStatus.DEPOSITED);
+        e.setPaymentMethod("CARD_MOCK");
+        e.setPaymentMethodId(pm.getId());
+        e.setPaymentTxId("MOCK-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase());
+        e.setDepositedAt(LocalDateTime.now());
+        escrowRepository.save(e);
+
+        // 매칭 마일스톤 PENDING → IN_PROGRESS
+        if (e.getMilestoneId() != null) {
+            milestoneRepository.findById(e.getMilestoneId()).ifPresent(m -> {
+                if (m.getStatus() == ProjectMilestone.MilestoneStatus.PENDING) {
+                    m.setStatus(ProjectMilestone.MilestoneStatus.IN_PROGRESS);
+                    milestoneRepository.save(m);
+                }
+            });
+        }
+
+        // 알림 → 파트너
+        userRepository.findById(e.getPayeeUserId()).ifPresent(payee -> {
+            createNotification(payee,
+                    Notification.NotificationType.DEPOSIT_RECEIVED,
+                    "에스크로 보관 완료",
+                    String.format("₩%,d 가 에스크로에 안전하게 보관되었습니다. 작업을 진행해 주세요.", e.getAmount()),
+                    "escrow", e.getId());
+        });
+        return EscrowResponse.from(e);
+    }
+
+    // ==================== Attachments ====================
+
+    @Transactional(readOnly = true)
+    public List<AttachmentResponse> listAttachments(Long projectId) {
+        ensureMember(projectId);
+        return attachmentRepository.findByProjectIdOrderByCreatedAtDesc(projectId)
+                .stream().map(AttachmentResponse::from).toList();
+    }
+
+    @Transactional
+    public AttachmentResponse createAttachment(Long projectId, AttachmentCreateRequest req) {
+        Long uid = ensureMember(projectId);
+        if (req.getName() == null || req.getName().isBlank())
+            throw new IllegalArgumentException("이름을 입력해 주세요.");
+        if (req.getUrl() == null || req.getUrl().isBlank())
+            throw new IllegalArgumentException("URL이 필요합니다.");
+        ProjectAttachment.Kind kind = "LINK".equalsIgnoreCase(req.getKind())
+                ? ProjectAttachment.Kind.LINK : ProjectAttachment.Kind.FILE;
+        ProjectAttachment a = ProjectAttachment.builder()
+                .projectId(projectId)
+                .kind(kind)
+                .name(req.getName())
+                .url(req.getUrl())
+                .mimeType(req.getMimeType())
+                .sizeBytes(req.getSizeBytes())
+                .notes(req.getNotes())
+                .uploaderUserId(uid)
+                .build();
+        return AttachmentResponse.from(attachmentRepository.save(a));
+    }
+
+    @Transactional
+    public void deleteAttachment(Long projectId, Long attachmentId) {
+        Long uid = ensureMember(projectId);
+        ProjectAttachment a = attachmentRepository.findByIdAndProjectId(attachmentId, projectId)
+                .orElseThrow(() -> new IllegalArgumentException("첨부를 찾을 수 없습니다."));
+        if (!Objects.equals(a.getUploaderUserId(), uid)) {
+            throw new IllegalArgumentException("본인이 등록한 첨부만 삭제할 수 있습니다.");
+        }
+        attachmentRepository.delete(a);
+    }
+
+    // ==================== Meeting ====================
+
+    @Transactional(readOnly = true)
+    public MeetingResponse getMeeting(Long projectId) {
+        ensureMember(projectId);
+        return meetingRepository.findByProjectId(projectId)
+                .map(MeetingResponse::from)
+                .orElse(null);
+    }
+
+    @Transactional
+    public MeetingResponse upsertMeeting(Long projectId, MeetingUpsertRequest req) {
+        ensureMember(projectId);
+        ProjectMeeting m = meetingRepository.findByProjectId(projectId)
+                .orElseGet(() -> ProjectMeeting.builder().projectId(projectId).build());
+        m.setFrequencyLabel(req.getFrequencyLabel());
+        m.setNextAt(req.getNextAt());
+        m.setLocationLabel(req.getLocationLabel());
+        m.setAgenda(req.getAgenda());
+        return MeetingResponse.from(meetingRepository.save(m));
+    }
+
+    // ==================== Aggregate ====================
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> dashboard(Long projectId) {
+        ensureMember(projectId);
+        Project p = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("프로젝트를 찾을 수 없습니다."));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        Map<String, Object> projectInfo = new LinkedHashMap<>();
+        projectInfo.put("id", p.getId());
+        projectInfo.put("title", p.getTitle());
+        projectInfo.put("status", p.getStatus() == null ? null : p.getStatus().name());
+        projectInfo.put("description", p.getDesc());
+        projectInfo.put("startDate", p.getStartDate());
+        projectInfo.put("durationMonths", p.getDurationMonths());
+        projectInfo.put("budgetAmount", p.getBudgetAmount());
+        if (p.getUser() != null) {
+            Map<String, Object> ownerInfo = new LinkedHashMap<>();
+            ownerInfo.put("id", p.getUser().getId());
+            ownerInfo.put("username", p.getUser().getUsername());
+            projectInfo.put("owner", ownerInfo);
+        }
+        result.put("project", projectInfo);
+
+        result.put("milestones", milestoneRepository.findByProjectIdOrderBySeqAsc(projectId)
+                .stream().map(MilestoneResponse::from).toList());
+        result.put("escrows", escrowRepository.findByProjectIdOrderByIdAsc(projectId)
+                .stream().map(EscrowResponse::from).toList());
+        result.put("attachments", attachmentRepository.findByProjectIdOrderByCreatedAtDesc(projectId)
+                .stream().map(AttachmentResponse::from).toList());
+        result.put("meeting", meetingRepository.findByProjectId(projectId)
+                .map(MeetingResponse::from).orElse(null));
+        return result;
+    }
+
+    // ==================== Helpers ====================
+
+    /** 파트너 여부를 에스크로 또는 ProjectApplication(수락 이후) 기준으로 확인 */
+    private boolean isPartnerOfProject(Long projectId, Long uid) {
+        // 1) 에스크로 payee
+        boolean byEscrow = escrowRepository.findByProjectIdOrderByIdAsc(projectId)
+                .stream().anyMatch(e -> Objects.equals(e.getPayeeUserId(), uid));
+        if (byEscrow) return true;
+        // 2) ProjectApplication ACCEPTED / CONTRACTED / IN_PROGRESS / COMPLETED
+        User u = userRepository.findById(uid).orElse(null);
+        if (u == null) return false;
+        return applicationRepository.findByProjectIdAndPartnerUser(projectId, u)
+                .map(a -> {
+                    var s = a.getStatus();
+                    return s == ProjectApplication.Status.ACCEPTED
+                        || s == ProjectApplication.Status.CONTRACTED
+                        || s == ProjectApplication.Status.IN_PROGRESS
+                        || s == ProjectApplication.Status.COMPLETED;
+                }).orElse(false);
+    }
+
+    /** 프로젝트의 클라이언트(소유자) 또는 매칭된 파트너 여부 확인. 반환=요청자 user_id */
+    private Long ensureMember(Long projectId) {
+        Long uid = com.DevBridge.devbridge.security.AuthContext.requireUserId();
+        Project p = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("프로젝트를 찾을 수 없습니다."));
+        Long ownerId = p.getUser() == null ? null : p.getUser().getId();
+        if (Objects.equals(uid, ownerId)) return uid;
+        if (isPartnerOfProject(projectId, uid)) return uid;
+        throw new SecurityException("프로젝트 접근 권한이 없습니다.");
+    }
+
+    private Long ensureClient(Long projectId) {
+        Long uid = com.DevBridge.devbridge.security.AuthContext.requireUserId();
+        Project p = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("프로젝트를 찾을 수 없습니다."));
+        Long ownerId = p.getUser() == null ? null : p.getUser().getId();
+        if (!Objects.equals(uid, ownerId)) {
+            throw new SecurityException("클라이언트(프로젝트 소유자)만 가능합니다.");
+        }
+        return uid;
+    }
+
+    private Long ensurePartner(Long projectId) {
+        Long uid = com.DevBridge.devbridge.security.AuthContext.requireUserId();
+        if (!isPartnerOfProject(projectId, uid)) {
+            throw new SecurityException("매칭된 파트너만 가능합니다.");
+        }
+        return uid;
+    }
+
+    private void createNotification(User user, Notification.NotificationType type,
+                                    String title, String message,
+                                    String relatedType, Long relatedId) {
+        Notification n = Notification.builder()
+                .user(user)
+                .notificationType(type)
+                .title(title)
+                .message(message)
+                .relatedEntityType(relatedType)
+                .relatedEntityId(relatedId)
+                .isRead(false)
+                .build();
+        notificationRepository.save(n);
+    }
+}

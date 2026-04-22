@@ -94,6 +94,27 @@ public class ProjectApplicationController {
         }
     }
 
+    /**
+     * 작성자 → 진행 프로젝트 미팅 시작 시 partner application 자동 보장.
+     * URL: POST /api/applications/ensure-active
+     * body: {"projectId": ..., "partnerUserId": ...}
+     */
+    @PostMapping("/ensure-active")
+    public ResponseEntity<?> ensureActive(@RequestBody Map<String, Long> body) {
+        Long userId = AuthContext.currentUserId();
+        if (userId == null) return unauth();
+        Long projectId = body.get("projectId");
+        Long partnerUserId = body.get("partnerUserId");
+        if (projectId == null || partnerUserId == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "projectId, partnerUserId 필수"));
+        }
+        try {
+            return ResponseEntity.ok(service.ensureActive(userId, projectId, partnerUserId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     private ResponseEntity<?> unauth() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "로그인이 필요합니다."));
     }

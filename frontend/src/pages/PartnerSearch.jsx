@@ -31,11 +31,11 @@ const HERO_MAP = {
 // PartnerSearch 컴포넌트 내부에서 useEffect로 fetch.
 
 const EXAMPLES = [
-  "AI 챗봇으로 고객 문의를 자동화 하고 싶습니다.",
-  "중개 플랫폼을 만들고 싶어요. 예약·결제 기능 통합 사례와 비용을 알고 싶습니다.",
-  "AI 추천 시스템을 활용해 고객별 맞춤형 상품을 제안하고 싶습니다.",
+  "React, Node.js 풀스택 개발 경험 있는 파트너가 필요해요. 쇼핑몰 MVP를 3개월 내 런칭하는 게 목표입니다.",
+  "AI 기반 추천 시스템 구축을 맡길 머신러닝 전문 파트너를 찾고 있어요. 예산은 500만원 내외입니다.",
+  "앱 개발 경험 풍부하고 소통이 잘 되는 시니어 개발자를 찾습니다. 핀테크 또는 금융 도메인 경험 우대합니다.",
 ];
-const HIGHLIGHT_KEYWORDS = [["AI 챗봇", "자동화"], ["중개 플랫폼", "예약·결제"], ["AI 추천 시스템", "맞춤형"]];
+const HIGHLIGHT_KEYWORDS = [["React, Node.js", "풀스택"], ["AI 기반", "머신러닝"], ["시니어 개발자", "핀테크"]];
 
 const SERVICE_FIELDS = ["AI", "커머스", "웹사이트", "디자인/기획", "유지보수", "핀테크", "SaaS", "모바일", "클라우드"];
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -280,7 +280,7 @@ export default function PartnerSearch() {
             {EXAMPLES.map((ex, i) => (
               <div
                 key={i}
-                onClick={() => { setQuery(ex); }}
+                onClick={() => { setAiQuery(ex); }}
                 style={{ background: "white", borderRadius: 14, padding: "18px 20px", textAlign: "left", cursor: "pointer", border: "1.5px solid #E2E8F0", boxShadow: "0 2px 10px rgba(0,0,0,0.06)", transition: "box-shadow 0.2s, border-color 0.2s" }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(59,130,246,0.18)"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)"; e.currentTarget.style.borderColor = "#E2E8F0"; }}
@@ -616,9 +616,11 @@ function PartnerCard({ data }) {
           <span style={{ fontSize: 16, fontWeight: 800, color: "#1E293B", fontFamily: F, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
             {data.slogan}
           </span>
-          <span style={{ fontSize: 12, fontWeight: 800, color: matchColor(data.match), background: `${matchColor(data.match)}18`, borderRadius: 99, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0, fontFamily: F }}>
-            {data.match}% AI 추천
-          </span>
+          {Array.isArray(data.aiReasons) && (
+            <span style={{ fontSize: 12, fontWeight: 800, color: matchColor(data.match), background: `${matchColor(data.match)}18`, borderRadius: 99, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0, fontFamily: F }}>
+              {data.match}% AI 추천
+            </span>
+          )}
         </div>
 
         {/* 부제목 - 한줄 자기소개 */}

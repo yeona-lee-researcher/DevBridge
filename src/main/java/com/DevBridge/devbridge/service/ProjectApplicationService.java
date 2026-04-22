@@ -115,6 +115,40 @@ public class ProjectApplicationService {
     }
 
     /**
+     * 작성자(client)가 진행 프로젝트 미팅 시작 시 호출.
+     * 해당 (projectId, partnerUserId) 조합의 application 이 없으면 IN_PROGRESS 로 자동 생성하고,
+     * 있으면 IN_PROGRESS 로 status 를 update 한다. 이미 IN_PROGRESS/CONTRACTED 면 no-op.
+     */
+    @Transactional
+    public ProjectApplicationResponse ensureActive(Long ownerUserId, Long projectId, Long partnerUserId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("프로젝트를 찾을 수 없습니다."));
+        if (project.getUser() == null || !project.getUser().getId().equals(ownerUserId)) {
+            throw new RuntimeException("프로젝트 작성자만 호출할 수 있습니다.");
+        }
+        User partner = userRepository.findById(partnerUserId)
+                .orElseThrow(() -> new RuntimeException("파트너 사용자를 찾을 수 없습니다."));
+        if (partner.getId().equals(ownerUserId)) {
+            throw new RuntimeException("본인 프로젝트에는 자기 자신을 파트너로 추가할 수 없습니다.");
+        }
+
+        ProjectApplication app = applicationRepository.findByProjectIdAndPartnerUser(projectId, partner)
+                .orElseGet(() -> applicationRepository.save(ProjectApplication.builder()
+                        .project(project)
+                        .partnerUser(partner)
+                        .status(ProjectApplication.Status.IN_PROGRESS)
+                        .message("[자동 생성] 진행 프로젝트 미팅 시작")
+                        .build()));
+        if (app.getStatus() != ProjectApplication.Status.IN_PROGRESS
+                && app.getStatus() != ProjectApplication.Status.CONTRACTED
+                && app.getStatus() != ProjectApplication.Status.COMPLETED) {
+            app.setStatus(ProjectApplication.Status.IN_PROGRESS);
+            app = applicationRepository.save(app);
+        }
+        return toResponse(app);
+    }
+
+    /**
      * 모집 완료(close-recruiting) — 한 트랜잭션에서:
      * ① project.status = CLOSED
      * ② 선택된 application(acceptedApplicationId)은 ACCEPTED 유지

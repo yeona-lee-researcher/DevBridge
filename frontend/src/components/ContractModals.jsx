@@ -141,20 +141,21 @@ function ELabel({ children }) {
   return <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 9 }}>{children}</div>;
 }
 function EditList({ label, items, onChange, placeholder = "내용 입력" }) {
+  const list = Array.isArray(items) ? items : [];
   return (
     <div style={{ marginBottom: 18 }}>
       {label && <ELabel>{label}</ELabel>}
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        {items.map((item, i) => (
+        {list.map((item, i) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input value={item}
-              onChange={e => { const n = [...items]; n[i] = e.target.value; onChange(n); }}
+            <input value={item ?? ""}
+              onChange={e => { const n = [...list]; n[i] = e.target.value; onChange(n); }}
               style={{ ...IN, flex: 1 }} placeholder={placeholder} />
-            <button onClick={() => onChange(items.filter((_, j) => j !== i))}
+            <button onClick={() => onChange(list.filter((_, j) => j !== i))}
               style={{ width: 30, height: 34, borderRadius: 7, border: "1.5px solid #FCA5A5", background: "#FEF2F2", color: "#EF4444", cursor: "pointer", fontSize: 16, fontFamily: F, flexShrink: 0 }}>×</button>
           </div>
         ))}
-        <button onClick={() => onChange([...items, ""])}
+        <button onClick={() => onChange([...list, ""])}
           style={{ padding: "7px 0", borderRadius: 8, border: "1.5px dashed #BFDBFE", background: "#EFF6FF", color: "#2563EB", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: F }}>
           + 추가
         </button>
@@ -237,7 +238,10 @@ function ActionButtons({ isEditing, onEdit, onSave, onCancel, onSubmit, inline }
 /* ─── 버전 관리 훅 ───────────────────────────────────── */
 function useVersioned(initDate, initModifier, initData, startEditing = false, value = null, onChange = null) {
   // 외부에서 value 가 들어오면 그걸 초기값으로 사용 (등록/수정 페이지에서 사용).
-  const seedData = value ?? initData;
+  // 단, value 에 누락된 키가 있으면 기본값으로 보완한다 (구버전 데이터 호환성).
+  const seedData = (value && typeof value === "object" && !Array.isArray(value))
+    ? { ...initData, ...value }
+    : (value ?? initData);
   const [versions, setVersions] = useState([{ label: "v1", date: initDate, modifier: initModifier, data: seedData }]);
   const [vIdx, setVIdx] = useState(0);
   const [isEditing, setIsEditing] = useState(startEditing);

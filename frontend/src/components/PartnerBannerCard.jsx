@@ -198,12 +198,14 @@ export default function PartnerBannerCard({ activePage, viewMode = false, partne
       background: bannerBg
         ? `url(${bannerBg}) center/cover no-repeat`
         : "linear-gradient(135deg, #EEF2FF 0%, #E0F2FE 50%, #F5F3FF 100%)",
-      borderRadius: 24, padding: "26px 40px",
-      display: "flex", alignItems: "center", gap: 32,
+      borderRadius: 24, padding: "20px 40px",
+      display: "flex", alignItems: "flex-start", gap: 32,
       marginBottom: 24,
       ...(viewMode ? {} : { marginLeft: -38, marginRight: -38 }),
       border: "1.5px solid #C7D2FE",
       boxShadow: "0 2px 10px rgba(99,102,241,0.10)",
+      position: "relative",
+      minHeight: viewMode ? 280 : undefined,
     }}>
       {/* 프로필 아바타 */}
       <div style={{
@@ -383,7 +385,7 @@ export default function PartnerBannerCard({ activePage, viewMode = false, partne
       </div>
 
       {/* 우측 버튼 그룹 - 편집 모드에서만 */}
-      {!viewMode && <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, minWidth: 196 }}>
+      {!viewMode && <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, minWidth: 196, alignSelf: "flex-start", paddingTop: 4 }}>
         {navButtons.map(btn => {
           const isActive = btn.key === activePage;
           return isActive ? (
@@ -405,9 +407,16 @@ export default function PartnerBannerCard({ activePage, viewMode = false, partne
         })}
       </div>}
 
-      {/* 우측 버튼 - 뷰 모드에서 자유 미팅 시작 */}
+      {/* 우측 버튼 - 뷰 모드에서 자유 미팅 시작 (우측 하단 고정) */}
       {viewMode && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, flexShrink: 0, minWidth: 196, alignItems: "stretch", justifyContent: "center" }}>
+        <div style={{
+          position: "absolute",
+          right: 32,
+          bottom: 24,
+          display: "flex", flexDirection: "column", gap: 10,
+          alignItems: "stretch", justifyContent: "center",
+          minWidth: 196,
+        }}>
           <button
             onClick={handleStartFreeMeeting}
             disabled={startingFreeMeeting}
@@ -428,9 +437,6 @@ export default function PartnerBannerCard({ activePage, viewMode = false, partne
             </svg>
             {startingFreeMeeting ? "연결 중..." : "자유 미팅 시작"}
           </button>
-          <p style={{ fontSize: 11, color: "#64748B", fontFamily: F, margin: 0, textAlign: "center", lineHeight: 1.5 }}>
-            채팅방을 열고 바로 대화를<br/>시작할 수 있어요.
-          </p>
         </div>
       )}
     </div>

@@ -194,7 +194,7 @@ export default function PortfolioAddManagementTab({ viewer = "partner", dashboar
       {!loading && !error && (
         <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
           <SectionBlock
-            title="진행 중인 프로젝트"
+            title="진행 중인 프로젝트 대시보드"
             desc="현재 연결 가능한 프로젝트입니다. 상세 작성으로 포트폴리오 내용을 저장할 수 있습니다."
             items={grouped.ongoing}
             addedMap={addedMap}
@@ -203,7 +203,7 @@ export default function PortfolioAddManagementTab({ viewer = "partner", dashboar
             onOpenEditor={openEditor}
           />
           <SectionBlock
-            title="완료된 프로젝트"
+            title="완료한 프로젝트 대시보드"
             desc="완료된 프로젝트를 포트폴리오로 공개하고 수정할 수 있습니다."
             items={grouped.completed}
             addedMap={addedMap}

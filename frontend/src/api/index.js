@@ -15,4 +15,6 @@ export * from './applications.api';
 export * from './reviews.api';
 export * from './portfolio.api';
 export * from './projectModules.api';
+export * from './paymentMethods.api';
+export * from './progressDashboard.api';
 

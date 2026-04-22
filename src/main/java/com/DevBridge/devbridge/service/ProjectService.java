@@ -22,6 +22,7 @@ public class ProjectService {
     private final ProjectSkillMappingRepository projectSkillMappingRepository;
     private final UserRepository userRepository;
     private final SkillMasterRepository skillMasterRepository;
+    private final ContractModuleSeeder contractModuleSeeder;
 
     private static final ObjectMapper OM = new ObjectMapper();
 
@@ -168,6 +169,15 @@ public class ProjectService {
         saveSkills(saved, req.getRequiredSkills(), true);
         // 우대 스킬
         saveSkills(saved, req.getPreferredSkills(), false);
+
+        // 7개 계약 협의 모듈 자동 시드 (PROJECT_MODULES) — 프로젝트 등록 정보로부터 파생
+        try {
+            contractModuleSeeder.seedForProject(saved);
+        } catch (Exception e) {
+            // 모듈 시드 실패가 프로젝트 등록 자체를 막지는 않도록 swallow
+            org.slf4j.LoggerFactory.getLogger(ProjectService.class)
+                    .warn("[ProjectService] contract module seed failed for project {}: {}", saved.getId(), e.getMessage());
+        }
 
         List<String> savedTags = projectTagRepository.findByProject(saved).stream()
                 .map(ProjectTag::getTag)

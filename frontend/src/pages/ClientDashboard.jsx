@@ -18,7 +18,7 @@ import {
 } from "../components/ContractModals";
 import MOCK_INTEREST_PROJECTS from "../data/mockInterestProjects.json";
 import MOCK_INTEREST_PARTNERS from "../data/mockInterestPartners.json";
-import { projectsApi, partnersApi, applicationsApi, profileApi, projectModulesApi } from "../api";
+import { projectsApi, partnersApi, applicationsApi, profileApi, projectModulesApi, dashboardApi, milestonesApi, escrowsApi, paymentMethodsApi } from "../api";
 
 /* ── 찜 목록 상세 API 응답을 카드 표시용으로 매핑 ───────────── */
 function toCardProject(p) {
@@ -96,6 +96,7 @@ const CHAT_PROJECT_HEROES = { 1: heroMeeting, 2: heroTeacher, 3: heroVacation };
    시간축(44px)을 제외한 남은 공간을 비율대로 분배합니다.       */
 import ScheduleTab from "../components/dashboard/ScheduleTab";
 import StartingProjectsTab from "../components/dashboard/StartingProjectsTab";
+import ProjectManageTabLive from "../components/dashboard/ProjectManageTabLive";
 /* ── 대시보드 사이드바 섹션 ───────────────────────────────── */
 const SECTIONS = [
   {title: "내 현황 관리",
@@ -1472,6 +1473,7 @@ function MilestoneReviewModal({ onClose, onApprove }) {
   );
 }
 
+
 const CONTRACT_MODAL_DEFS = [
   { key: "scope",       label: "1.  작업 범위",             Component: ScopeModal },
   { key: "deliverable", label: "2. 최종 전달물 정의서",     Component: DeliverablesModal },
@@ -2127,89 +2129,13 @@ function ProjectDetailDash({ projectName, onBack, onGoSchedule, onGoMeeting }) {
 }
 
 function ProjectManageTab({ onGoSchedule, initialSelectedId, onOpenProjectMeeting }) {
-  const [selectedId, setSelectedId] = useState(initialSelectedId ?? null);
-  const selectedProj = MOCK_MANAGE_PROJECTS.find(p => p.id === selectedId);
-  if (selectedId !== null) {
-    return (
-      <ProjectDetailDash
-        projectName={selectedProj?.title}
-        onBack={() => setSelectedId(null)}
-        onGoSchedule={onGoSchedule}
-        onGoMeeting={() => onOpenProjectMeeting?.(selectedId)}
-      />
-    );
-  }
   return (
-    <div>
-      {/* 헤더 */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-        <div>
-          <h2 style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.02em", margin: "0 0 4px", fontFamily: F, background: "linear-gradient(120deg, #2563EB 0%, #1D4ED8 28%, #3B82F6 58%, #6366F1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-            진행 프로젝트 관리 대시보드
-          </h2>
-          <p style={{ fontSize: 13, color: "#64748B", margin: 0, fontFamily: F }}>프로젝트의 실시간 진행 현황을 확인하고 상세 내용을 관리하세요.</p>
-        </div>
-        <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#3B82F6", fontFamily: F, fontWeight: 600, whiteSpace: "nowrap", padding: 0 }}>
-          현재 수행 중인 프로젝트 목록입니다.
-        </button>
-      </div>
-
-      {/* 프로젝트 카드 목록 */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {MOCK_MANAGE_PROJECTS.map(proj => (
-          <div key={proj.id} style={{
-            border: "1.5px solid #F1F5F9", borderRadius: 16,
-            padding: "22px 24px", background: "white",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-            display: "flex", gap: 20, alignItems: "flex-start",
-          }}>
-            {/* ── 왼쪽: 프로젝트 정보 + 마일스톤 */}
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: proj.badge === "유료" ? "#EFF6FF" : "#F0FFF4", color: proj.badge === "유료" ? "#3B82F6" : "#16A34A", fontFamily: F }}>{proj.badge}</span>
-                <span style={{ fontSize: 18, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{proj.title}</span>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                {proj.tags.map(t => (
-                  <span key={t} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 12px", borderRadius: 99, background: "#F8FAFC", border: "1px solid #E2E8F0", fontSize: 12, color: "#475569", fontFamily: F }}>⟨/⟩ {t}</span>
-                ))}
-              </div>
-              {proj.overallStatus && (
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", marginBottom: 8, fontFamily: F }}>{proj.overallStatus}</div>
-              )}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#374151", fontFamily: F }}>Project Progress</span>
-                <span style={{ fontSize: 18, fontWeight: 800, color: proj.progress > 0 ? proj.progressColor : "#94A3B8", fontFamily: F }}>{proj.progress}%</span>
-              </div>
-              <div style={{ width: "100%", height: 8, borderRadius: 99, background: "#F1F5F9", marginBottom: 16, overflow: "hidden" }}>
-                <div style={{ width: `${proj.progress}%`, height: "100%", borderRadius: 99, background: proj.progressColor, transition: "width 0.4s" }} />
-              </div>
-              <div>{proj.milestones.map(ms => <MilestoneRow key={ms.num} ms={ms} />)}</div>
-            </div>
-
-            {/* ── 오른쪽: CORE CLIENT */}
-            <div style={{ width: 170, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", fontFamily: F }}>CORE CLIENT</span>
-              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#F1F5F9", border: "2px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#94A3B8"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="#94A3B8"/></svg>
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1E293B", fontFamily: F, textAlign: "center" }}>{proj.client.name}</span>
-              <span style={{ fontSize: 12, color: "#F59E0B", fontFamily: F }}>★ {proj.client.rating} ({proj.client.reviews} Reviews)</span>
-              <button style={{ width: "100%", padding: "8px 0", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer", fontFamily: F }}
-                onClick={() => onOpenProjectMeeting?.(proj.id)}
-                onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                onMouseLeave={e => e.currentTarget.style.background = "white"}
-              >클라이언트 메시지</button>
-              <button style={{ width: "100%", padding: "10px 0", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", fontSize: 13, fontWeight: 700, color: "white", cursor: "pointer", fontFamily: F, boxShadow: "0 3px 10px rgba(99,102,241,0.28)" }}
-                onClick={() => setSelectedId(proj.id)}
-                onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
-                onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-              >프로젝트 관리 상세</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <ProjectManageTabLive
+      role="CLIENT"
+      initialSelectedId={initialSelectedId}
+      onGoSchedule={onGoSchedule}
+      onOpenProjectMeeting={onOpenProjectMeeting}
+    />
   );
 }
 
@@ -3465,39 +3391,18 @@ const MOCK_PROJECT_MEETING_CONTACTS = [
   },
 ];
 
-function ProjectMeetingTab({ initialActiveId, chatClient }) {
-  // initialActiveId = 프로젝트 ID
-  const projectId = initialActiveId ?? 1;
-  const projectContact = MOCK_PROJECT_MEETING_CONTACTS.find(c => c.id === projectId);
-  const fallbackStatuses = {
-    scope: "협의완료",
-    deliverable: "협의완료",
-    schedule: "협의완료",
-    payment: "협의완료",
-    revision: "협의완료",
-    completion: "협의완료",
-    terms: "논의 중",
-  };
-
-  const projectMeetingStatuses = projectContact
-    ? {
-        scope: projectContact.agreementItems?.[0]?.status || fallbackStatuses.scope,
-        deliverable: projectContact.agreementItems?.[1]?.status || fallbackStatuses.deliverable,
-        schedule: projectContact.agreementItems?.[2]?.status || fallbackStatuses.schedule,
-        payment: projectContact.agreementItems?.[3]?.status || fallbackStatuses.payment,
-        revision: projectContact.agreementItems?.[4]?.status || fallbackStatuses.revision,
-        completion: projectContact.agreementItems?.[5]?.status || fallbackStatuses.completion,
-        terms: projectContact.agreementItems?.[6]?.status || fallbackStatuses.terms,
-      }
-    : fallbackStatuses;
-
+function ProjectMeetingTab({ initialActiveId, chatClient, returnProjectId = null, onDashboardMove = null, targetContactId = null, targetProjectId = null }) {
+  // 실제 DM 방 + IN_PROGRESS 프로젝트 파트너만 contact list에 표시.
+  // filterInProgress=true: receivedList() 기준 IN_PROGRESS 파트너만 필터링.
   return (
     <ContractMeetingTab
-      initialContacts={MOCK_PROJECT_MEETING_CONTACTS}
-      initialContactId={projectId}
-      initialStatuses={projectMeetingStatuses}
+      initialContactId={targetContactId ?? initialActiveId ?? 1}
+      initialProjectId={targetProjectId}
       showDashboardMoveButton={true}
       chatClient={chatClient}
+      filterInProgress={true}
+      meetingMode="project"
+      onDashboardMove={(pid) => onDashboardMove?.(pid || returnProjectId)}
     />
   );
 }
@@ -3527,6 +3432,28 @@ function useStreamChannel(client, type, myDbId, contact, contractId) {
           if (!sid) return;
           ch = client.channel("messaging", `self-${sid}`, { members: [sid] });
           await ch.watch();
+          setChannel(ch);
+          return;
+        }
+        if (type === "project_meeting") {
+          // 진행 프로젝트 미팅은 계약·자유미팅 DM 과 분리된 새 stream 채널 사용.
+          const me = String(myDbId);
+          const other = String(contact.targetUserId);
+          if (!other) return;
+          const [a, b] = me < other ? [me, other] : [other, me];
+          ch = client.channel("messaging", `pm-${a}-${b}`, { members: [me, other] });
+          await ch.watch();
+          // 첫 진입 시 시스템 안내 자동 게시 (이미 있으면 skip)
+          try {
+            const existing = ch.state?.messages || [];
+            const hasIntro = existing.some(m => m.custom_type === "project_meeting_intro");
+            if (!hasIntro) {
+              await ch.sendMessage({
+                text: "🎉 진행 프로젝트 미팅이 시작되었습니다. 이곳에서 마일스톤·산출물·일정을 이어가세요!",
+                custom_type: "project_meeting_intro",
+              });
+            }
+          } catch (e) { console.warn("[Stream] project_meeting intro 게시 실패:", e?.message); }
           setChannel(ch);
           return;
         }
@@ -3672,7 +3599,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
               project: "자유 미팅",
               avatar: counterpartAvatar || (counterpartName?.toLowerCase().startsWith("partner") ? heroTeacher : counterpartName?.toLowerCase().startsWith("client") ? heroStudent : heroDefault),
               initials: (counterpartName || "U")[0].toUpperCase(),
-              time: "진행중",
+              time: "",
               lastMsg: "채팅방이 연결되었습니다",
               unread: 0,
               active: false,
@@ -4212,7 +4139,23 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, color: "#1E293B", fontFamily: F }}>{contact.name}</span>
-                  <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: F, flexShrink: 0 }}>{contact.time}</span>
+                  {!contact.isSelfChat && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); togglePin(contact.id); }}
+                      title={pinnedIds.includes(contact.id) ? "대화 고정 해제" : "대화 고정"}
+                      style={{
+                        border: "none", background: "transparent", cursor: "pointer", padding: 4,
+                        fontSize: 16, lineHeight: 1, flexShrink: 0,
+                        opacity: pinnedIds.includes(contact.id) ? 1 : 0.35,
+                        transition: "opacity 0.15s, transform 0.15s, filter 0.15s",
+                        transform: pinnedIds.includes(contact.id) ? "rotate(-20deg)" : "none",
+                        filter: pinnedIds.includes(contact.id) ? "none" : "grayscale(100%)",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = 1; }}
+                      onMouseLeave={e => { e.currentTarget.style.opacity = pinnedIds.includes(contact.id) ? 1 : 0.35; }}
+                    >📌</button>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#3B82F6", fontFamily: F, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.project}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -4222,8 +4165,8 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
                   )}
                 </div>
               </div>
-              {/* 고정 아이콘 (self-chat 제외) */}
-              {!contact.isSelfChat && (
+              {/* 고정 아이콘 (self-chat 제외) — 신규 📌 버튼으로 대체되어 숨김 */}
+              {false && !contact.isSelfChat && (
                 <button
                   onClick={(e) => { e.stopPropagation(); togglePin(contact.id); }}
                   title={pinnedIds.includes(contact.id) ? "고정 해제" : "채팅 고정"}
@@ -4519,8 +4462,8 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
                       ? <div style={{ color: "#94A3B8", fontSize: 12, fontFamily: F, textAlign: "center", marginTop: 40 }}>공유된 사진/동영상이 없습니다.</div>
                       : <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                           {activeContact.sharedImages.map((img, i) => (
-                            <div key={i} onClick={() => window.open(img.url, "_blank")} style={{ aspectRatio: "1", background: "#F1F5F9", borderRadius: 8, overflow: "hidden", cursor: "pointer", border: "1px solid #E2E8F0" }}>
-                              <img src={img.url} alt="shared" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <div key={i} onClick={() => img.url && window.open(img.url, "_blank")} style={{ aspectRatio: "1", background: "#F1F5F9", borderRadius: 8, overflow: "hidden", cursor: img.url ? "pointer" : "default", border: "1px solid #E2E8F0" }}>
+                              {img.url && <img src={img.url} alt="shared" onError={e => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                             </div>
                           ))}
                         </div>
@@ -4580,7 +4523,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
           </div>
 
           {/* 메시지 입력창 */}
-          <div style={{ borderTop: "1.5px solid #F1F5F9", padding: "12px 16px", background: "white", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ borderTop: "1.5px solid #F1F5F9", padding: "12px 16px", background: "white", display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
             {selectedFile && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#F1F5F9", borderRadius: 8, alignSelf: "flex-start" }}>
                 <span style={{ fontSize: 12, color: "#374151", fontFamily: F, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedFile.name}</span>
@@ -4617,7 +4560,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
                 </svg>
               </button>
               {showEmojiPicker && (
-                <div style={{ position: "absolute", bottom: 50, right: 0, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 14, padding: "12px 10px", boxShadow: "0 10px 32px rgba(0,0,0,0.12)", zIndex: 100, width: 290, maxHeight: 220, overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
+                <div style={{ position: "absolute", bottom: 50, right: 44, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 14, padding: "12px 10px", boxShadow: "0 10px 32px rgba(0,0,0,0.12)", zIndex: 100, width: 320, maxHeight: 220, overflowX: "hidden", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
                   {COMMON_EMOJIS.map(emoji => (
                     <button key={emoji} onClick={() => { setMsgInput(prev => prev + emoji); setShowEmojiPicker(false); }} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", padding: "6px 0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, transition: "background 0.1s" }} onMouseEnter={e => e.currentTarget.style.background = "#F1F5F9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                       {emoji}
@@ -4742,7 +4685,7 @@ const STATUS_STYLES = {
   "협의완료": { bg: "#D1FAE5", color: "#059669", border: "#6EE7B7" },
 };
 
-function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialContactId = 1, initialStatuses = null, showDashboardMoveButton = false, chatClient, projectId = null }) {
+function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialContactId = 1, initialStatuses = null, showDashboardMoveButton = false, chatClient, projectId = null, onDashboardMove = null, initialProjectId = null, filterInProgress = false, meetingMode = "contract" }) {
   const user = useStore(s => s.user);
   const { dbId } = useStore();
   const clientProfileDetail = useStore(s => s.clientProfileDetail);
@@ -4767,11 +4710,12 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
   useEffect(() => {
     if (!isDefaultContacts || !dbId) return;
     let cancelled = false;
-    fetch(`/api/chat/rooms?userId=${dbId}`)
-      .then(r => r.json())
-      .then(rooms => {
+    const fetchRooms = async () => {
+      try {
+        const r = await fetch(`/api/chat/rooms?userId=${dbId}`);
+        const rooms = await r.json();
         if (cancelled) return;
-        const list = (rooms || [])
+        let list = (rooms || [])
           .filter(r => r.roomType === "DIRECT_MESSAGE")
           .map(r => {
             const counterpartId = r.user1Id === dbId ? r.user2Id : r.user1Id;
@@ -4781,11 +4725,11 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
               id: counterpartId,
               targetUserId: counterpartId,
               name: counterpartName,
-              project: "계약 세부 협의",
+              project: meetingMode === "project" ? "진행 프로젝트 미팅" : "계약 세부 협의",
               avatar: counterpartAvatar || (counterpartName?.toLowerCase().startsWith("partner") ? heroTeacher : counterpartName?.toLowerCase().startsWith("client") ? heroStudent : heroDefault),
               initials: (counterpartName || "U")[0].toUpperCase(),
-              time: "진행중",
-              lastMsg: "계약 협의를 이어가세요",
+              time: "",
+              lastMsg: meetingMode === "project" ? "진행 프로젝트 미팅을 이어가세요" : "계약 협의를 이어가세요",
               unread: 0,
               active: false,
               isStreamReal: true,
@@ -4804,14 +4748,29 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
               ],
             };
           });
+        if (filterInProgress) {
+          try {
+            const appList = await applicationsApi.receivedList();
+            const inProgressPartnerIds = new Set(
+              (appList || []).filter(a => a.status === "IN_PROGRESS").map(a => Number(a.partnerUserId))
+            );
+            list = list.filter(c => inProgressPartnerIds.has(Number(c.id)));
+          } catch (e) {
+            console.warn("[ContractMeetingTab] filterInProgress: receivedList 실패", e?.message);
+          }
+        }
+        if (cancelled) return;
         setContacts(list);
         if (list.length > 0) {
           setActiveId(prev => (prev && list.find(c => c.id === prev)) ? prev : list[0].id);
         }
-      })
-      .catch(err => console.error("[ContractMeetingTab] Fetch rooms failed:", err));
+      } catch (err) {
+        console.error("[ContractMeetingTab] Fetch rooms failed:", err);
+      }
+    };
+    fetchRooms();
     return () => { cancelled = true; };
-  }, [dbId, isDefaultContacts]);
+  }, [dbId, isDefaultContacts, filterInProgress]);
   const [itemStatusesByContact, setItemStatusesByContact] = useState(() => {
     const defaults = {
       scope: "논의 중",
@@ -4844,6 +4803,16 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
     return mapped;
   });
   const [searchVal, setSearchVal] = useState("");
+  // 대화 고정 (핀) — localStorage 영속화
+  const pinKey = dbId ? `chat-pinned-${meetingMode}-${dbId}` : null;
+  const [pinnedIds, setPinnedIds] = useState(() => {
+    if (!pinKey) return [];
+    try { return JSON.parse(localStorage.getItem(pinKey) || "[]"); } catch { return []; }
+  });
+  useEffect(() => {
+    if (!pinKey) return;
+    try { localStorage.setItem(pinKey, JSON.stringify(pinnedIds)); } catch { /* noop */ }
+  }, [pinKey, pinnedIds]);
   const [msgInput, setMsgInput] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -4902,6 +4871,8 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
         });
         setContactProjects(dedup);
         setSelectedContractProjectId(prev => {
+          // 외부에서 지정한 initialProjectId 가 후보에 있으면 우선 선택
+          if (initialProjectId && dedup.find(p => p.id === initialProjectId)) return initialProjectId;
           if (prev && dedup.find(p => p.id === prev)) return prev;
           return dedup[0]?.id || null;
         });
@@ -4909,7 +4880,8 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
       .catch(() => { if (!cancelled) { setContactProjects([]); setSelectedContractProjectId(null); } });
     return () => { cancelled = true; };
   }, [activeId, projectId]);
-  const effectiveProjectId = projectId || selectedContractProjectId || autoProjectId;
+  // contact-specific 매칭만 사용. autoProjectId fallback 제거 (다른 contact 의 데이터가 잘못 노출되는 문제 방지).
+  const effectiveProjectId = projectId || selectedContractProjectId;
   // modules[moduleKey] = { status, data, lastModifierId, lastModifierName, updatedAt }
   const [modules, setModules] = useState({});
   const fetchModules = useCallback(async () => {
@@ -4967,10 +4939,17 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
   const activeStatuses = effectiveProjectId
     ? Object.fromEntries(["scope","deliverable","schedule","payment","revision","completion","terms"].map(k => [k, modules[k]?.status || fallbackStatuses[k]]))
     : fallbackStatuses;
-  const filtered = contacts.filter(c =>
-    c.name.toLowerCase().includes(searchVal.toLowerCase()) ||
-    c.project.toLowerCase().includes(searchVal.toLowerCase())
-  );
+  const filtered = contacts
+    .filter(c =>
+      c.name.toLowerCase().includes(searchVal.toLowerCase()) ||
+      c.project.toLowerCase().includes(searchVal.toLowerCase())
+    )
+    .slice()
+    .sort((a, b) => {
+      const ap = pinnedIds.includes(a.id) ? 1 : 0;
+      const bp = pinnedIds.includes(b.id) ? 1 : 0;
+      return bp - ap;
+    });
 
   const sharedFiles = activeContact?.sharedFiles || [];
   const sharedLinks = activeContact?.sharedLinks || [];
@@ -5015,7 +4994,7 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
   };
 
   // ── Stream Chat integration ───────────────────────────────────
-  const { channel } = useStreamChannel(chatClient, "negotiation", dbId, activeContact);
+  const { channel } = useStreamChannel(chatClient, meetingMode === "project" ? "project_meeting" : "negotiation", dbId, activeContact);
   const streamMessages = useHeadlessMessages(channel);
 
   // module_update 메시지 수신 시 즉시 modules refetch (상대방의 수정 반영)
@@ -5307,11 +5286,30 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
           module_key: key,
         });
       } catch (e) { /* noop */ }
+
+      // 7개 항목 모두 협의완료 시 시스템 메시지 (이번 수락으로 마지막 항목이 완료된 경우)
+      if (otherAlreadyProposed) {
+        const allKeys = ["scope","deliverable","schedule","payment","revision","completion","terms"];
+        const completedKeys = allKeys.filter(k => {
+          if (k === key) return true;
+          return modules[k]?.status === "협의완료" || modules[k]?.status === "확정";
+        });
+        if (completedKeys.length === allKeys.length) {
+          try {
+            await channel.sendMessage({
+              text: `🎊 모두 협의 완료! '진행 프로젝트'로 이동해주세요!`,
+              custom_type: "all_modules_complete",
+            });
+          } catch (e) { /* noop */ }
+        }
+      }
     }
-    setOpenModal(null);
+    
+    // alert 먼저 표시 후 모달 닫기
     alert(otherAlreadyProposed
       ? `🎉 협의 완료!\n[${label}] 항목이 확정되었습니다.`
       : `✅ 제안 완료\n상대방의 수락하기를 기다립니다.`);
+    setOpenModal(null);
   };
 
   const doneCount = Object.values(activeStatuses).filter(isAgreementCompleted).length;
@@ -5512,7 +5510,24 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#1E293B", fontFamily: F }}>{contact.name}</span>
-                    <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: F, flexShrink: 0 }}>{contact.time}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPinnedIds(prev => prev.includes(contact.id) ? prev.filter(id => id !== contact.id) : [...prev, contact.id]);
+                      }}
+                      title={pinnedIds.includes(contact.id) ? "대화 고정 해제" : "대화 고정"}
+                      style={{
+                        border: "none", background: "transparent", cursor: "pointer", padding: 4,
+                        fontSize: 16, lineHeight: 1, flexShrink: 0,
+                        opacity: pinnedIds.includes(contact.id) ? 1 : 0.35,
+                        transition: "opacity 0.15s, transform 0.15s, filter 0.15s",
+                        transform: pinnedIds.includes(contact.id) ? "rotate(-20deg)" : "none",
+                        filter: pinnedIds.includes(contact.id) ? "none" : "grayscale(100%)",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = 1; }}
+                      onMouseLeave={e => { e.currentTarget.style.opacity = pinnedIds.includes(contact.id) ? 1 : 0.35; }}
+                    >📌</button>
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: "#3B82F6", fontFamily: F, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.project}</div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -5537,7 +5552,7 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
         {/* 계약 세부 협의 항목 카드 - 컴팩트 디자인 (이미지4 스타일) */}
         {activeContact && (
           <div style={{ flexShrink: 0, borderTop: "2px solid #EFF6FF", background: "white", padding: "12px 14px" }}>
-            {contactProjects.length > 1 && (
+            {contactProjects.length >= 1 && (
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#64748B", fontFamily: F, marginBottom: 5 }}>📁 협의할 프로젝트 선택</div>
                 <select
@@ -5612,9 +5627,39 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
               </div>
             </div>
             <div ref={menuRef} style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+              {!showDashboardMoveButton && progress === 100 && (
+                <button
+                  onClick={async () => {
+                    if (effectiveProjectId) {
+                      try { await projectsApi.updateStatus(effectiveProjectId, "IN_PROGRESS"); }
+                      catch (err) { console.warn("[ContractMeetingTab] project status 업데이트 실패:", err?.message); }
+                      // partner application 자동 보장 → 파트너 측 진행관리 탭에 카드 노출
+                      const partnerUserId = activeContact?.targetUserId || activeContact?.id;
+                      if (partnerUserId) {
+                        try { await applicationsApi.ensureActive(effectiveProjectId, partnerUserId); }
+                        catch (err) { console.warn("[ContractMeetingTab] application 자동 보장 실패:", err?.message); }
+                      }
+                    }
+                    if (channel) {
+                      try {
+                        await channel.sendMessage({
+                          text: `🚀 모든 항목 협의 완료! 진행 프로젝트로 미팅을 이어가주세요!`,
+                          custom_type: "move_to_project_meeting",
+                        });
+                      } catch (e) { console.warn("[ContractMeetingTab] system message send failed:", e?.message); }
+                    }
+                    setSearchParams({ tab: "project_meeting" }, { replace: true });
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "linear-gradient(135deg, #93C5FD 0%, #A5B4FC 50%, #C4B5FD 100%)"; e.currentTarget.style.boxShadow = "0 5px 18px rgba(167,139,250,0.50)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "linear-gradient(135deg, #BAE6FD 0%, #C7D2FE 50%, #DDD6FE 100%)"; e.currentTarget.style.boxShadow = "0 3px 10px rgba(167,139,250,0.30)"; e.currentTarget.style.transform = "translateY(0)"; }}
+                  style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #BAE6FD 0%, #C7D2FE 50%, #DDD6FE 100%)", color: "#4338CA", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: F, boxShadow: "0 3px 10px rgba(167,139,250,0.30)", transition: "background 0.2s, box-shadow 0.2s, transform 0.15s", whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  🚀 진행 프로젝트 미팅 시작
+                </button>
+              )}
               {showDashboardMoveButton ? (
                 <button
-                  onClick={() => setSearchParams({ tab: "project_manage" }, { replace: true })}
+                  onClick={() => { setSearchParams({ tab: "project_manage" }, { replace: true }); onDashboardMove?.(effectiveProjectId); }}
                   onMouseEnter={e => { e.currentTarget.style.background = "linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #4f46e5 100%)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(99,102,241,0.45)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)"; e.currentTarget.style.boxShadow = "0 3px 10px rgba(99,102,241,0.28)"; }}
                   style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F, boxShadow: "0 3px 10px rgba(99,102,241,0.28)", transition: "background 0.15s, box-shadow 0.15s", whiteSpace: "nowrap", flexShrink: 0 }}
@@ -5712,7 +5757,7 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
                       : <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                           {sharedImages.map((image, index) => (
                             <div key={`${image.name || "image"}-${index}`} onClick={() => image.url && window.open(image.url, "_blank")} style={{ aspectRatio: "1", background: "#F1F5F9", borderRadius: 10, overflow: "hidden", cursor: image.url ? "pointer" : "default", border: "1px solid #E2E8F0" }}>
-                              {image.url && <img src={image.url} alt="shared" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                              {image.url && <img src={image.url} alt="shared" onError={e => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                             </div>
                           ))}
                         </div>
@@ -5802,7 +5847,7 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
                 </svg>
               </button>
               {showEmojiPicker && (
-                <div style={{ position: "absolute", bottom: 50, right: 0, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 14, padding: "12px 10px", boxShadow: "0 10px 32px rgba(0,0,0,0.12)", zIndex: 100, width: 290, maxHeight: 220, overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
+                <div style={{ position: "absolute", bottom: 50, right: 44, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 14, padding: "12px 10px", boxShadow: "0 10px 32px rgba(0,0,0,0.12)", zIndex: 100, width: 320, maxHeight: 220, overflowX: "hidden", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
                   {COMMON_EMOJIS.map(emoji => (
                     <button key={emoji} onClick={() => { setMsgInput(prev => prev + emoji); setShowEmojiPicker(false); }} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", padding: "6px 0", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, transition: "background 0.1s" }} onMouseEnter={e => e.currentTarget.style.background = "#F1F5F9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>
                       {emoji}
@@ -5853,9 +5898,9 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
         const moduleData = modules[key]?.data || null;
         const beStatus = modules[key]?.status;
         const itemLabel = activeContact?.agreementItems?.[openModal]?.label || "";
-        // 작업자 = 채팅 상대방 (계약 수주자), 제안자 = 마지막으로 수정 제안한 사람
-        const workerName = (modules[key]?.data?._nego?.workerName) || activeContact?.name || "상대방";
-        const proposerName = (modules[key]?.data?._nego?.proposerName) || modules[key]?.lastModifierName || (user?.name || user?.username || "나");
+        // ClientDashboard: 나=client, 상대=partner
+        const clientName = user?.name || user?.username || "나";
+        const partnerName = activeContact?.name || "상대방";
         return (
           <div style={{ position: "absolute", left: 400, top: 0, right: 0, bottom: 0, background: "white", zIndex: 50, display: "flex", flexDirection: "column", borderLeft: "1.5px solid #F1F5F9" }}>
             {/* 헤더 바: 항목명 + 작업자/제안자 배지 + X 닫기 */}
@@ -5865,9 +5910,9 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
                 {(() => {
                   const status = beStatus || activeStatuses?.[key];
                   const nego = modules[key]?.data?._nego || {};
-                  const proposerAccepted = !!nego.proposerAccepted || status === "제안됨" || status === "협의완료";
-                  const workerAccepted = !!nego.workerAccepted || status === "협의완료";
-                  const bothAccepted = proposerAccepted && workerAccepted;
+                  const clientAccepted = !!nego.clientAccepted || !!nego.proposerAccepted || status === "제안됨" || status === "협의완료";
+                  const partnerAccepted = !!nego.partnerAccepted || !!nego.workerAccepted || status === "협의완료";
+                  const bothAccepted = clientAccepted && partnerAccepted;
                   const Check = ({ on, color }) => (
                     on
                       ? <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: color, color: "#FFFFFF", fontSize: 10, fontWeight: 900, flexShrink: 0 }}>✓</span>
@@ -5875,15 +5920,13 @@ function ContractMeetingTab({ initialContacts = MOCK_CONTRACT_CONTACTS, initialC
                   );
                   return (
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: "#0369A1", background: "#E0F2FE", border: "1px solid #BAE6FD", borderRadius: 99, padding: "5px 13px", fontFamily: F }}>
-                        <Check on={workerAccepted} color="#0EA5E9" />
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        작업자: {workerName}
-                      </span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: "#9A3412", background: "#FFEDD5", border: "1px solid #FED7AA", borderRadius: 99, padding: "5px 13px", fontFamily: F }}>
-                        <Check on={proposerAccepted} color="#F97316" />
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A3412" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        제안자: {proposerName}
+                        <Check on={clientAccepted} color="#F97316" />
+                        client: {clientName}
+                      </span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: "#0369A1", background: "#E0F2FE", border: "1px solid #BAE6FD", borderRadius: 99, padding: "5px 13px", fontFamily: F }}>
+                        <Check on={partnerAccepted} color="#0EA5E9" />
+                        partner: {partnerName}
                       </span>
                       {bothAccepted && (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 800, color: "#FFFFFF", background: "linear-gradient(135deg, #34D399 0%, #10B981 100%)", border: "none", borderRadius: 99, padding: "5px 13px", fontFamily: F, boxShadow: "0 2px 6px rgba(16,185,129,0.25)" }}>
@@ -6355,8 +6398,18 @@ export default function ClientDashboard() {
         <ProjectManageTab
           onGoSchedule={() => setActiveTab("schedule")}
           initialSelectedId={projectManageTarget}
-          onOpenProjectMeeting={(contactId) => {
-            setProjectMeetingTarget(contactId);
+          onOpenProjectMeeting={async (pid) => {
+            // 한 프로젝트에 대한 partner counterpart 조회 → 해당 contact 자동 선택
+            let contactId = null;
+            try {
+              const apps = await applicationsApi.receivedList();
+              const matched = (apps || []).find(a =>
+                Number(a.projectId) === Number(pid) &&
+                ["ACCEPTED", "CONTRACTED", "IN_PROGRESS", "COMPLETED"].includes(a.status)
+              );
+              if (matched?.partnerUserId) contactId = Number(matched.partnerUserId);
+            } catch (err) { console.warn("[onOpenProjectMeeting] partner 조회 실패:", err?.message); }
+            setProjectMeetingTarget({ projectId: pid, contactId });
             setActiveTab("project_meeting");
           }}
         />
@@ -6366,7 +6419,7 @@ export default function ClientDashboard() {
     if (activeTab === "evaluation")      return <EvaluationTab />;
     if (activeTab === "free_meeting")    return <FreeMeetingTab proposalPartner={proposalPartner} onProposalHandled={() => setProposalPartner(null)} chatClient={chatClient} onSwitchTab={setActiveTab} />;
     if (activeTab === "contract_meeting") return <ContractMeetingTab chatClient={chatClient} />;
-    if (activeTab === "project_meeting") return <ProjectMeetingTab initialActiveId={projectMeetingTarget} chatClient={chatClient} />;
+    if (activeTab === "project_meeting") return <ProjectMeetingTab initialActiveId={1} chatClient={chatClient} returnProjectId={projectMeetingTarget?.projectId ?? projectMeetingTarget} targetProjectId={projectMeetingTarget?.projectId ?? null} targetContactId={projectMeetingTarget?.contactId ?? null} onDashboardMove={(pid) => { setProjectManageTarget(pid); setActiveTab("project_manage"); }} />;
     const label = SECTIONS.flatMap(s => s.items).find(i => i.key === activeTab)?.label || "";
     return <ComingSoonDash label={label} />;
   };

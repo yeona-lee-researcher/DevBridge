@@ -2,6 +2,7 @@ package com.DevBridge.devbridge.config;
 
 import com.DevBridge.devbridge.entity.*;
 import com.DevBridge.devbridge.repository.*;
+import com.DevBridge.devbridge.service.ContractModuleSeeder;
 import com.DevBridge.devbridge.util.EnumMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,8 @@ public class DataSeeder implements CommandLineRunner {
     private final ProjectTagRepository projectTagRepository;
     private final ProjectSkillMappingRepository projectSkillMappingRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final PartnerReviewRepository partnerReviewRepository;
+    private final ContractModuleSeeder contractModuleSeeder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -70,6 +74,15 @@ public class DataSeeder implements CommandLineRunner {
         seedProjectTags();
         seedProjectSkillMapping();
         seedChatRooms();
+        seedPartnerReviews();
+        // 모든 기존 프로젝트에 7개 계약 협의 모듈(PROJECT_MODULES)이 채워져 있는지 확인하고
+        // 비어있는 프로젝트에 대해 프로젝트 등록 정보 기반으로 자동 백필.
+        try {
+            int seeded = contractModuleSeeder.backfillAll();
+            log.info("[DataSeeder] PROJECT_MODULES 백필: {} 프로젝트 시드됨", seeded);
+        } catch (Exception e) {
+            log.warn("[DataSeeder] PROJECT_MODULES 백필 실패: {}", e.getMessage());
+        }
         log.info("===== DataSeeder 완료 =====");
     }
 
@@ -574,6 +587,66 @@ public class DataSeeder implements CommandLineRunner {
             count++;
         }
         log.info("[project_skill_mapping] {} rows 시드 완료", count);
+    }
+
+    // ----------------------------------------------------
+    // Partner Reviews
+    // ----------------------------------------------------
+    private void seedPartnerReviews() {
+        if (partnerReviewRepository.count() > 0) {
+            log.info("[partner_review] 스킵");
+            return;
+        }
+        List<PartnerProfile> partners = partnerProfileRepository.findAll();
+        List<User> allUsers = userRepository.findAll();
+        if (partners.isEmpty() || allUsers.isEmpty()) {
+            log.warn("[partner_review] 파트너 또는 유저 데이터 없음 → 스킵");
+            return;
+        }
+        String[] contents = {
+            "요구사항을 정확히 파악하고 기간 내 완벽하게 납품해주셨습니다. 커뮤니케이션도 뛰어나고 재계약 의향 있습니다.",
+            "기술적인 이해도가 높아서 요구사항을 빠르게 반영해주셨어요. 일정 준수도 완벽했고 매우 만족스럽습니다.",
+            "일정에 맞게 개발해주셨고 코드 품질도 우수했습니다. 소소한 수정 요청도 빠르게 처리해주셨습니다.",
+            "프로젝트 기간 중 적극적인 소통으로 완성도 높은 결과물을 받았습니다. 다음 프로젝트에도 함께하고 싶습니다.",
+            "전문적인 기술력과 체계적인 업무 진행으로 만족스러운 결과를 얻었습니다. 주변에 적극 추천하겠습니다.",
+            "복잡한 요구사항임에도 불구하고 명확하게 이해하고 처리해주셨습니다. 결과물 퀄리티가 기대 이상이었습니다.",
+            "처음 협업임에도 불구하고 매우 전문적으로 진행해주셨습니다. 피드백 수용력이 뛰어납니다.",
+            "디테일에 강하고 사용자 경험을 잘 고려한 개발을 해주셨습니다. 유지보수도 편하게 되어 있어요.",
+            "신속한 응대와 높은 기술력으로 프로젝트를 성공적으로 마무리했습니다. 정말 감사합니다.",
+            "예상보다 빠른 납기와 깔끔한 코드 품질에 매우 만족합니다. 앞으로도 자주 함께하고 싶습니다.",
+            "소통이 원활하고 요구사항 변경에 유연하게 대응해주셨습니다. 훌륭한 파트너입니다.",
+            "기술 스택에 대한 깊은 이해와 최신 트렌드를 반영한 개발로 매우 만족스러운 결과를 얻었습니다.",
+            "프로젝트 목표를 명확히 이해하고 효율적으로 개발해주셨습니다. 다음에도 꼭 같이 작업하고 싶습니다.",
+            "예산 내에서 최대한의 퀄리티를 제공해주셨습니다. 가성비가 뛰어난 파트너입니다.",
+            "세세한 부분까지 신경 써주시고 완성도 높은 결과물을 제공해주셨습니다. 강력히 추천합니다.",
+        };
+        double[] ratings = {5.0, 4.8, 4.9, 4.7, 5.0, 4.5, 4.8, 4.6, 5.0, 4.7, 4.9, 4.8, 4.5, 4.6, 5.0};
+
+        int count = 0;
+        int maxPartners = Math.min(partners.size(), 8);
+        for (int pi = 0; pi < maxPartners; pi++) {
+            PartnerProfile pp = partners.get(pi);
+            Long partnerUserId = pp.getUser() != null ? pp.getUser().getId() : null;
+            List<User> reviewers = new ArrayList<>();
+            for (User u : allUsers) {
+                if (!u.getId().equals(partnerUserId)) reviewers.add(u);
+            }
+            if (reviewers.isEmpty()) continue;
+            int reviewsPerPartner = 3 + (pi % 3);
+            int maxReviews = Math.min(reviewsPerPartner, reviewers.size());
+            for (int ri = 0; ri < maxReviews; ri++) {
+                User reviewer = reviewers.get(ri % reviewers.size());
+                int idx = (pi * 5 + ri) % contents.length;
+                partnerReviewRepository.save(PartnerReview.builder()
+                        .partnerProfile(pp)
+                        .reviewer(reviewer)
+                        .rating(ratings[idx])
+                        .content(contents[idx])
+                        .build());
+                count++;
+            }
+        }
+        log.info("[partner_review] {} rows 시드 완료", count);
     }
 
     // ----------------------------------------------------

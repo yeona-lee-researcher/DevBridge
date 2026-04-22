@@ -295,7 +295,7 @@ export default function ClientBannerCard({ activePage }) {
       </div>
 
       {/* 우측 버튼 그룹 */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, minWidth: 196 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, minWidth: 196, alignSelf: "flex-start", paddingTop: 4 }}>
         {navButtons.map(btn => {
           const isActive = btn.key === activePage;
           return (
