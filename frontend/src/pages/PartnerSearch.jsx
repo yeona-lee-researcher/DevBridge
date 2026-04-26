@@ -44,16 +44,20 @@ const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 1
 const GRADE_BADGE = {
   diamond: { label: "💎 다이아몬드", color: "#1E3A8A", bg: "#DBEAFE", border: "#93C5FD" },
   platinum: { label: "🌙 플래티넘",  color: "#4C1D95", bg: "#EDE9FE", border: "#C4B5FD" },
-  gold:     { label: "🟡 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
-  silver:   { label: "⚫ 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  gold:     { label: "🥇 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
+  silver:   { label: "🥈 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  bronze:   { label: "🥉 브론즈",    color: "#92400E", bg: "#FFF7ED", border: "#FED7AA" },
+  seed:     { label: "🌱 시드",      color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
 };
 
 /* ── 유틸 ──────────────────────────────────────────────────── */
 const GRADE_LIST = [
   { key: "diamond", label: "다이아몬드", icon: "💎" },
   { key: "platinum", label: "플래티넘", icon: "🌙" },
-  { key: "gold",    label: "골드",     icon: "🟡" },
-  { key: "silver",  label: "실버",     icon: "⚫" },
+  { key: "gold",    label: "골드",     icon: "🥇" },
+  { key: "silver",  label: "실버",     icon: "🥈" },
+  { key: "seed",    label: "시드",     icon: "🌱" },
+  { key: "bronze",  label: "브론즈",   icon: "🥉" },
 ];
 const LEVEL_OPTIONS = ["전체", "주니어", "미들", "시니어"];
 const PAGE_SIZE_OPTIONS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
@@ -657,20 +661,20 @@ function PartnerCard({ data }) {
           );
         })()}
 
-        {/* 기술 태그 */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+        {/* 기술 태그 + 서비스 분야 chip — 한 행으로 통합해 카드 하단으로 내림 */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+          {/* 서비스 분야 / 파트너 유형 / 선호 방식 (빈값은 제외) */}
+          {[data.serviceField, data.partnerType, data.workPref]
+            .filter(c => c != null && String(c).trim() !== "")
+            .map((chip, i) => (
+              <span key={`f-${i}`} style={{
+                fontSize: 12, fontWeight: 600, color: "#6366F1",
+                background: "#EEF2FF", borderRadius: 999, padding: "4px 10px", fontFamily: F,
+              }}>{chip}</span>
+            ))}
+          {/* 기술 태그 */}
           {data.tags.map(t => (
             <span key={t} style={{ fontSize: 12, fontWeight: 600, color: "#475569", background: "#F1F5F9", borderRadius: 6, padding: "4px 10px", fontFamily: F }}>{t}</span>
-          ))}
-        </div>
-
-        {/* 서비스 분야 · 파트너 유형 · 선호 방식 */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[data.serviceField, data.partnerType, data.workPref].map((chip, i) => (
-            <span key={i} style={{
-              fontSize: 12, fontWeight: 600, color: "#6366F1",
-              background: "#EEF2FF", borderRadius: 999, padding: "4px 10px", fontFamily: F,
-            }}>{chip}</span>
           ))}
         </div>
 

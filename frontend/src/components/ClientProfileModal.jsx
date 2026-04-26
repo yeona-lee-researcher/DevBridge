@@ -9,7 +9,7 @@ import heroDefault from "../assets/hero_default.png";
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
 
-/* PartnerProfileView 와 동일한 섹션 제목 컴포넌트 (아이콘 + 그라데이션 텍스트) */
+/* ClientProfileView 와 동일한 섹션 제목 컴포넌트 (아이콘 + 그라데이션 텍스트) */
 function SectionTitle({ icon, title }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -66,7 +66,17 @@ const TABS = [
   { key: "portfolio", label: "포트폴리오", icon: "📋" },
 ];
 
-export default function PartnerProfileModal({ partner, onClose, onPropose, onReject }) {
+/**
+ * 파트너 → 클라이언트 프로필을 풀 디자인으로 띄우는 모달.
+ * PartnerProfileModal 카피 + 클라이언트 컨텍스트 매핑.
+ *
+ * 호환성: client 또는 partner prop 둘 다 받음 (사용처에 따라).
+ */
+export default function ClientProfileModal({ client, partner, onClose, onPropose, onReject }) {
+  // 정규화: client 가 있으면 그것을 사용, 없으면 partner 사용
+  const data = client || partner || {};
+  partner = data; // eslint-disable-line no-param-reassign
+
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("intro");
   const scrollRef = useRef(null);
@@ -207,13 +217,13 @@ export default function PartnerProfileModal({ partner, onClose, onPropose, onRej
               <span style={{ fontSize: 22, fontWeight: 800, color: "#1E293B", fontFamily: F }}>
                 @{merged.partnerUsername || merged.username || partner.name}
               </span>
-              {/* devLevel 배지 (시니어/주니어 등) */}
-              {(merged.devLevel || merged.level) && (
+              {/* clientType 배지 (개인/법인사업자/개인사업자/팀) */}
+              {merged.clientType && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#7C3AED", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 99, padding: "2px 8px", fontFamily: F }}>
                   🏷️ {(() => {
-                    const lvl = merged.devLevel || merged.level;
-                    const map = { JUNIOR_1_3Y: "주니어", MIDDLE_3_5Y: "미들", SENIOR_5_7Y: "시니어", EXPERT_7Y_PLUS: "엑스퍼트" };
-                    return map[lvl] || lvl;
+                    const ct = merged.clientType;
+                    const map = { CORPORATION: "법인사업자", SOLE_PROPRIETOR: "개인사업자", INDIVIDUAL: "개인", TEAM: "팀" };
+                    return map[ct] || ct;
                   })()}
                 </span>
               )}
@@ -244,10 +254,10 @@ export default function PartnerProfileModal({ partner, onClose, onPropose, onRej
                 {merged.shortBio || (merged.bio && merged.bio.length > 200 ? merged.bio.slice(0, 200) + "…" : merged.bio)}
               </div>
             )}
-            {/* 4행: 칩들 (서비스분야 / 지역 / 근무선호) */}
+            {/* 4행: 칩들 (업종/지역/근무선호) — 클라이언트는 industry 위주 */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-              {merged.serviceField && (
-                <span style={{ fontSize: 11, fontWeight: 600, color: "#3730A3", background: "rgba(255,255,255,0.82)", border: "1px solid #C7D2FE", borderRadius: 99, padding: "3px 10px", fontFamily: F }}>{merged.serviceField}</span>
+              {merged.industry && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#3730A3", background: "rgba(255,255,255,0.82)", border: "1px solid #C7D2FE", borderRadius: 99, padding: "3px 10px", fontFamily: F }}>{merged.industry}</span>
               )}
               {merged.region && (
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#3730A3", background: "rgba(255,255,255,0.82)", border: "1px solid #C7D2FE", borderRadius: 99, padding: "3px 10px", fontFamily: F }}>{merged.region}</span>

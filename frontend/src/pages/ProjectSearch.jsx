@@ -24,15 +24,19 @@ const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 1
 const GRADE_BADGE = {
   diamond: { label: "💎 다이아몬드", color: "#1E3A8A", bg: "#DBEAFE", border: "#93C5FD" },
   platinum: { label: "🌙 플래티넘",  color: "#4C1D95", bg: "#EDE9FE", border: "#C4B5FD" },
-  gold:     { label: "🟡 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
-  silver:   { label: "⚫ 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  gold:     { label: "🥇 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
+  silver:   { label: "🥈 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  bronze:   { label: "🥉 브론즈",    color: "#92400E", bg: "#FFF7ED", border: "#FED7AA" },
+  seed:     { label: "🌱 시드",      color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
 };
 
 const GRADE_LIST = [
   { key: "diamond", label: "다이아몬드", icon: "💎" },
   { key: "platinum", label: "플래티넘",  icon: "🌙" },
-  { key: "gold",    label: "골드",      icon: "🟡" },
-  { key: "silver",  label: "실버",      icon: "⚫" },
+  { key: "gold",    label: "골드",      icon: "🥇" },
+  { key: "silver",  label: "실버",      icon: "🥈" },
+  { key: "seed",    label: "시드",      icon: "🌱" },
+  { key: "bronze",  label: "브론즈",    icon: "🥉" },
 ];
 
 const CLIENT_VERIF_LIST = [
@@ -588,7 +592,7 @@ function ProjectCard({ data, onSelect }) {
         </div>
       </div>
 
-      <div style={{ flexShrink: 0, textAlign: "right", minWidth: 180, position: "relative", alignSelf: "stretch", display: "flex", flexDirection: "column" }}>
+      <div style={{ flexShrink: 0, textAlign: "right", width: 220, position: "relative", alignSelf: "stretch", display: "flex", flexDirection: "column" }}>
         {/* 찜 하트 */}
         <button
           onClick={handleLikeClick}
@@ -929,6 +933,21 @@ const CONTRACT_TABS = [
   { key: "terms",       label: "7. 특약" },
 ];
 
+// 프로젝트 등록 폼은 일부 키를 다른 이름으로 보냄 (deliverables=복수, specialTerms).
+// project_modules 테이블의 표준 키(deliverable/terms)와 호환시키기 위한 alias.
+const TAB_KEY_ALIAS = {
+  deliverable: ["deliverable", "deliverables"],
+  terms: ["terms", "specialTerms"],
+};
+function pickTermData(terms, key) {
+  if (!terms) return undefined;
+  const candidates = TAB_KEY_ALIAS[key] || [key];
+  for (const k of candidates) {
+    if (terms[k] != null) return terms[k];
+  }
+  return undefined;
+}
+
 function ContractTermsTabs({ terms }) {
   const [active, setActive] = useState("scope");
   if (!terms || typeof terms !== "object" || Object.keys(terms).length === 0) {
@@ -952,7 +971,7 @@ function ContractTermsTabs({ terms }) {
       {/* 탭 헤더 */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14, borderBottom: "1px solid #E2E8F0", paddingBottom: 0 }}>
         {CONTRACT_TABS.map((t) => {
-          const has = !!terms[t.key];
+          const has = pickTermData(terms, t.key) != null;
           const isActive = active === t.key;
           return (
             <button
@@ -975,7 +994,7 @@ function ContractTermsTabs({ terms }) {
         background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12,
         padding: "18px 22px", minHeight: 80, fontFamily: F,
       }}>
-        <ContractTermInlineModal termKey={active} data={terms[active]} />
+        <ContractTermInlineModal termKey={active} data={pickTermData(terms, active)} />
       </div>
     </div>
   );

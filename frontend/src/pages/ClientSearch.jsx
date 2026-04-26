@@ -33,15 +33,19 @@ const SERVICE_FIELDS = ["AI", "커머스", "웹사이트", "디자인/기획", "
 const GRADE_BADGE = {
   diamond: { label: "💎 다이아몬드", color: "#1E3A8A", bg: "#DBEAFE", border: "#93C5FD" },
   platinum: { label: "🌙 플래티넘",  color: "#4C1D95", bg: "#EDE9FE", border: "#C4B5FD" },
-  gold:     { label: "🟡 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
-  silver:   { label: "⚫ 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  gold:     { label: "🥇 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
+  silver:   { label: "🥈 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  bronze:   { label: "🥉 브론즈",    color: "#92400E", bg: "#FFF7ED", border: "#FED7AA" },
+  seed:     { label: "🌱 시드",      color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
 };
 
 const GRADE_LIST = [
   { key: "diamond", label: "다이아몬드", icon: "💎" },
   { key: "platinum", label: "플래티넘",  icon: "🌙" },
-  { key: "gold",    label: "골드",       icon: "🟡" },
-  { key: "silver",  label: "실버",       icon: "⚫" },
+  { key: "gold",    label: "골드",       icon: "🥇" },
+  { key: "silver",  label: "실버",       icon: "🥈" },
+  { key: "seed",    label: "시드",       icon: "🌱" },
+  { key: "bronze",  label: "브론즈",     icon: "🥉" },
 ];
 
 const LEVEL_OPTIONS = ["전체", "주니어", "미들", "시니어"];
@@ -590,14 +594,16 @@ function ClientCard({ data }) {
           ))}
         </div>
 
-        {/* 클라이언트 유형 · 분야 · 근무 선호 */}
+        {/* 클라이언트 유형 · 분야 · 근무 선호 — 빈 값(미입력)은 chip으로 렌더하지 않음 */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[data.clientType, data.industry, data.workPrefLabel].map((chip, i) => (
-            <span key={i} style={{
-              fontSize: 11, fontWeight: 600, color: "#6366F1",
-              background: "#EEF2FF", borderRadius: 999, padding: "3px 10px", fontFamily: F,
-            }}>{chip}</span>
-          ))}
+          {[data.clientType, data.industry, data.workPrefLabel]
+            .filter(c => c != null && String(c).trim() !== "")
+            .map((chip, i) => (
+              <span key={i} style={{
+                fontSize: 11, fontWeight: 600, color: "#6366F1",
+                background: "#EEF2FF", borderRadius: 999, padding: "3px 10px", fontFamily: F,
+              }}>{chip}</span>
+            ))}
         </div>
 
       </div>
