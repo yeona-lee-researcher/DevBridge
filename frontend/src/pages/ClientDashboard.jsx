@@ -71,6 +71,7 @@ const isOnlyEmoji = (s) => {
   const trimmed = String(s).trim();
   if (!trimmed) return false;
   try {
+    // eslint-disable-next-line no-misleading-character-class -- ZWJ/VS16/keycap is intended (emoji sequence detection)
     return /^(\p{Extended_Pictographic}|\p{Emoji_Component}|[\u200D\uFE0F\u20E3\s])+$/u.test(trimmed);
   } catch {
     return false;
@@ -953,6 +954,27 @@ function PartnerDetailPopup({ partner, onClose, backdrop = "rgba(0,0,0,0.5)" }) 
   );
 }
 
+/* ── 모듈 스코프: 매 render 마다 새 component 생성 방지 (state 손실 차단) ── */
+function EmptyState({ label, onGo }) {
+  return (
+    <div style={{
+      padding: "40px 20px", textAlign: "center",
+      border: "1.5px dashed #E2E8F0", borderRadius: 14, background: "#F8FAFC",
+      marginBottom: 12,
+    }}>
+      <div style={{ fontSize: 28, marginBottom: 8 }}>🤍</div>
+      <p style={{ fontSize: 14, color: "#64748B", fontFamily: F, margin: "0 0 14px" }}>
+        아직 찜한 {label}이 없어요
+      </p>
+      <button onClick={onGo} style={{
+        padding: "8px 20px", borderRadius: 10, border: "none",
+        background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
+        color: "white", fontSize: 13, fontWeight: 700, fontFamily: F, cursor: "pointer",
+      }}>둘러보기 →</button>
+    </div>
+  );
+}
+
 function InterestsTab({ onProposePartner }) {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState(null);
@@ -992,24 +1014,6 @@ function InterestsTab({ onProposePartner }) {
     });
     return () => { active = false; };
   }, [interestedPartnerIds]);
-
-  const EmptyState = ({ label, onGo }) => (
-    <div style={{
-      padding: "40px 20px", textAlign: "center",
-      border: "1.5px dashed #E2E8F0", borderRadius: 14, background: "#F8FAFC",
-      marginBottom: 12,
-    }}>
-      <div style={{ fontSize: 28, marginBottom: 8 }}>🤍</div>
-      <p style={{ fontSize: 14, color: "#64748B", fontFamily: F, margin: "0 0 14px" }}>
-        아직 찜한 {label}이 없어요
-      </p>
-      <button onClick={onGo} style={{
-        padding: "8px 20px", borderRadius: 10, border: "none",
-        background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
-        color: "white", fontSize: 13, fontWeight: 700, fontFamily: F, cursor: "pointer",
-      }}>둘러보기 →</button>
-    </div>
-  );
 
   return (
     <div>
@@ -4146,27 +4150,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
                   )}
                 </div>
               </div>
-              {/* 고정 아이콘 (self-chat 제외) — 신규 📌 버튼으로 대체되어 숨김 */}
-              {false && !contact.isSelfChat && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); togglePin(contact.id); }}
-                  title={pinnedIds.includes(contact.id) ? "고정 해제" : "채팅 고정"}
-                  style={{
-                    position: "absolute", top: 10, right: 8,
-                    width: 22, height: 22, padding: 0, border: "none", background: "transparent",
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                    opacity: pinnedIds.includes(contact.id) ? 1 : 0.35,
-                    transition: "opacity 0.15s",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.opacity = 1; }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = pinnedIds.includes(contact.id) ? 1 : 0.35; }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill={pinnedIds.includes(contact.id) ? "#3B82F6" : "none"} stroke={pinnedIds.includes(contact.id) ? "#3B82F6" : "#94A3B8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 17v5"/>
-                    <path d="M9 10.76V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5.76a2 2 0 0 0 1.11 1.79l1.78.9A2 2 0 0 1 19 14.24V16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1.76a2 2 0 0 1 1.11-1.79l1.78-.9A2 2 0 0 0 9 10.76z"/>
-                  </svg>
-                </button>
-              )}
+              {/* 고정 아이콘 (self-chat 제외) — 신규 📌 버튼으로 대체되어 제거됨 */}
             </div>
           ))}
         </div>

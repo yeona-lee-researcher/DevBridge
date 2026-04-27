@@ -49,7 +49,6 @@ function toCardPartner(p) {
 }
 import PartnerProfileModal from "../components/PartnerProfileModal";
 import ClientProfileModal from "../components/ClientProfileModal";
-import { buildProjectDetail } from "../lib/erdLookup";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
@@ -70,6 +69,7 @@ const isOnlyEmoji = (s) => {
   const trimmed = String(s).trim();
   if (!trimmed) return false;
   try {
+    // eslint-disable-next-line no-misleading-character-class -- ZWJ/VS16/keycap is intended (emoji sequence detection)
     return /^(\p{Extended_Pictographic}|\p{Emoji_Component}|[\u200D\uFE0F\u20E3\s])+$/u.test(trimmed);
   } catch {
     return false;
@@ -1155,6 +1155,27 @@ function MeetingClientProfilePopup({ client, onClose, backdrop = "transparent" }
     </div>
   );
 }
+/* ── 모듈 스코프: 매 render 마다 새 component 생성 방지 (state 손실 차단) ── */
+function EmptyState({ label, onGo }) {
+  return (
+    <div style={{
+      padding: "40px 20px", textAlign: "center",
+      border: "1.5px dashed #E2E8F0", borderRadius: 14, background: "#F8FAFC",
+      marginBottom: 12,
+    }}>
+      <div style={{ fontSize: 28, marginBottom: 8 }}>🤍</div>
+      <p style={{ fontSize: 14, color: "#64748B", fontFamily: F, margin: "0 0 14px" }}>
+        아직 찜한 {label}이 없어요
+      </p>
+      <button onClick={onGo} style={{
+        padding: "8px 20px", borderRadius: 10, border: "none",
+        background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
+        color: "white", fontSize: 13, fontWeight: 700, fontFamily: F, cursor: "pointer",
+      }}>둘러보기 →</button>
+    </div>
+  );
+}
+
 function InterestsTab({ onProposePartner }) {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState(null);
@@ -1194,24 +1215,6 @@ function InterestsTab({ onProposePartner }) {
     });
     return () => { active = false; };
   }, [interestedPartnerIds]);
-
-  const EmptyState = ({ label, onGo }) => (
-    <div style={{
-      padding: "40px 20px", textAlign: "center",
-      border: "1.5px dashed #E2E8F0", borderRadius: 14, background: "#F8FAFC",
-      marginBottom: 12,
-    }}>
-      <div style={{ fontSize: 28, marginBottom: 8 }}>🤍</div>
-      <p style={{ fontSize: 14, color: "#64748B", fontFamily: F, margin: "0 0 14px" }}>
-        아직 찜한 {label}이 없어요
-      </p>
-      <button onClick={onGo} style={{
-        padding: "8px 20px", borderRadius: 10, border: "none",
-        background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
-        color: "white", fontSize: 13, fontWeight: 700, fontFamily: F, cursor: "pointer",
-      }}>둘러보기 →</button>
-    </div>
-  );
 
   return (
     <div>
@@ -3567,7 +3570,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
   });
   useEffect(() => {
     if (!pinKey) return;
-    try { localStorage.setItem(pinKey, JSON.stringify(pinnedIds)); } catch {}
+    try { localStorage.setItem(pinKey, JSON.stringify(pinnedIds)); } catch { /* localStorage 사용 불가 환경 무시 */ }
   }, [pinKey, pinnedIds]);
   const togglePin = (id) => {
     setPinnedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -3684,19 +3687,6 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
     });
   }, [contacts.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch full counterpart info to determine userType
-  const [counterpartDetails, setCounterpartDetails] = useState({});
-  useEffect(() => {
-    if (!activeId || typeof activeId === "string" || activeId < 60) return;
-    if (counterpartDetails[activeId]) return;
-    fetch(`/api/users/${activeId}`)
-      .then(res => res.json())
-      .then(data => {
-        setCounterpartDetails(prev => ({ ...prev, [activeId]: data }));
-      })
-      .catch(err => console.error("[FreeMeetingTab] Fetch user detail failed:", err));
-  }, [activeId, counterpartDetails]);
-
   // 협업 제안 처리 완료 통보 (마운트 시 1회)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (proposalId) onProposalHandled?.(); }, []);
@@ -3704,9 +3694,6 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
   const activeContact = useMemo(() => {
     return contacts.find(c => c.id === activeId) || contacts[0];
   }, [contacts, activeId]);
-
-  const activeCounterpart = counterpartDetails[activeId];
-  const canProposeProject = user?.userType === "CLIENT" && activeCounterpart?.userType === "PARTNER";
 
   const filtered = contacts
     .filter(c =>
@@ -3746,7 +3733,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
   // ── Helper to render text with clickable links ─────────────────
   const renderTextWithLinks = (text) => {
     if (!text) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
     const elements = [];
     let lastIndex = 0;
     let match;
@@ -3835,7 +3822,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
         }
 
         // Extract links from text or attachments
-        const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
+        const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
         const matches = sm.text?.match(urlRegex);
         if (matches) {
           matches.forEach(m => {
@@ -4010,19 +3997,6 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
     ], "제안을 수락했어요.");
     setTimeout(() => { onSwitchTab && onSwitchTab("contract_meeting"); }, 800);
   };
-  const handleRejectProposal = async (msg) => {
-    const tl = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-    if (msg.applicationId) {
-      try {
-        const { applicationsApi } = await import("../api");
-        await applicationsApi.updateStatus(msg.applicationId, "REJECTED");
-      } catch (err) { console.error("[Partner FreeMeetingTab] 거절 처리 실패:", err); }
-    }
-    await appendMsg([
-      { id: Date.now(), type: "system_notice", text: `요청을 거절했어요.`, time: tl },
-    ], "제안을 거절했어요.");
-  };
-
   const handleShareProject = (project) => {
     appendMsg(
       [{ id: Date.now(), type: "project_card", from: "me", project, time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) }],
@@ -4150,27 +4124,7 @@ function FreeMeetingTab({ proposalPartner, onProposalHandled, chatClient, onSwit
                   )}
                 </div>
               </div>
-              {/* 고정 아이콘 (self-chat 제외) — 신규 📌 버튼으로 대체되어 숨김 */}
-              {false && !contact.isSelfChat && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); togglePin(contact.id); }}
-                  title={pinnedIds.includes(contact.id) ? "고정 해제" : "채팅 고정"}
-                  style={{
-                    position: "absolute", top: 10, right: 8,
-                    width: 22, height: 22, padding: 0, border: "none", background: "transparent",
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                    opacity: pinnedIds.includes(contact.id) ? 1 : 0.35,
-                    transition: "opacity 0.15s",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.opacity = 1; }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = pinnedIds.includes(contact.id) ? 1 : 0.35; }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill={pinnedIds.includes(contact.id) ? "#3B82F6" : "none"} stroke={pinnedIds.includes(contact.id) ? "#3B82F6" : "#94A3B8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 17v5"/>
-                    <path d="M9 10.76V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5.76a2 2 0 0 0 1.11 1.79l1.78.9A2 2 0 0 1 19 14.24V16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-1.76a2 2 0 0 1 1.11-1.79l1.78-.9A2 2 0 0 0 9 10.76z"/>
-                  </svg>
-                </button>
-              )}
+              {/* 고정 아이콘 (self-chat 제외) — 신규 📌 버튼으로 대체되어 제거됨 */}
             </div>
           ))}
         </div>
@@ -4682,7 +4636,7 @@ function statusStyle(s) {
   return { bg: "#F1F5F9", text: "#64748B" };
 }
 
-function ContractMeetingTab({ initialContactId = 1, initialContacts = DEFAULT_CONTRACT_CONTACTS, initialStatuses = INITIAL_STATUSES, showModalHeaderStatusBadge = true, showDashboardMoveButton = false, chatClient, projectId = null, onDashboardMove = null, initialProjectId = null, filterInProgress = false, meetingMode = "contract" }) {
+function ContractMeetingTab({ initialContactId = 1, initialContacts = DEFAULT_CONTRACT_CONTACTS, initialStatuses = INITIAL_STATUSES, showDashboardMoveButton = false, chatClient, projectId = null, onDashboardMove = null, initialProjectId = null, filterInProgress = false, meetingMode = "contract" }) {
   // 기본 (대시보드 직접 진입) 모드에서는 BE 채팅방을 fetch해서 contacts 로 사용
   const isDefaultContacts = initialContacts === DEFAULT_CONTRACT_CONTACTS;
   const user = useStore(s => s.user);
@@ -4789,24 +4743,9 @@ function ContractMeetingTab({ initialContactId = 1, initialContacts = DEFAULT_CO
   const [itemStatuses, setItemStatuses]   = useState(initialStatuses);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   // ── 7모듈 BE 연동 (project_modules) ─────────────────
-  // projectId prop 이 없으면 본인이 지원한 진행중 지원건의 프로젝트를 자동 매칭 (시연 편의)
-  const [autoProjectId, setAutoProjectId] = useState(null);
   // 활성 contact 와 함께 진행중인 프로젝트 후보 (드롭다운)
   const [contactProjects, setContactProjects] = useState([]);
   const [selectedContractProjectId, setSelectedContractProjectId] = useState(null);
-  useEffect(() => {
-    if (projectId) return;
-    let cancelled = false;
-    import("../api").then(({ applicationsApi }) => applicationsApi.myList())
-      .then(list => {
-        if (cancelled) return;
-        const pick = (list || []).find(a => a.status === "IN_PROGRESS" || a.status === "CONTRACTED" || a.status === "ACCEPTED") || (list || [])[0];
-        const pid = pick?.projectId || pick?.project?.id || null;
-        if (pid) setAutoProjectId(pid);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [projectId]);
   // activeContact 변경 시 해당 client 와 진행중인 내 프로젝트 후보 fetch
   // meetingMode 에 따라 드롭다운 후보를 구분:
   //   - 'project' (진행 프로젝트 미팅) → IN_PROGRESS 만
@@ -4907,13 +4846,13 @@ function ContractMeetingTab({ initialContactId = 1, initialContacts = DEFAULT_CO
       }
     };
     channel.on("message.new", handler);
-    return () => { try { channel.off("message.new", handler); } catch {} };
+    return () => { try { channel.off("message.new", handler); } catch { /* off 실패 무시 */ } };
   }, [channel, fetchModules]);
 
   // ── Helper to render text with clickable links ─────────────────
   const renderTextWithLinks = (text) => {
     if (!text) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
     const elements = [];
     let lastIndex = 0;
     let match;
@@ -5004,7 +4943,7 @@ function ContractMeetingTab({ initialContactId = 1, initialContacts = DEFAULT_CO
           });
         }
 
-        const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
+        const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?\b)/gi;
         const matches = sm.text?.match(urlRegex);
         if (matches) {
           matches.forEach(m => {
@@ -5208,7 +5147,7 @@ function ContractMeetingTab({ initialContactId = 1, initialContacts = DEFAULT_CO
           custom_type: otherAlreadyProposed ? "module_complete" : "module_update",
           module_key: key,
         });
-      } catch (e) { /* noop */ }
+      } catch { /* noop */ }
 
       // 7개 항목 모두 협의완료 시 시스템 메시지 (이번 수락으로 마지막 항목이 완료된 경우)
       if (otherAlreadyProposed) {
@@ -5223,7 +5162,7 @@ function ContractMeetingTab({ initialContactId = 1, initialContacts = DEFAULT_CO
               text: `🎊 모두 협의 완료! '진행 프로젝트'로 이동해주세요!`,
               custom_type: "all_modules_complete",
             });
-          } catch (e) { /* noop */ }
+          } catch { /* noop */ }
         }
       }
     }
@@ -5888,7 +5827,6 @@ function ProjectMeetingTab({ initialContactId = 1, chatClient, returnProjectId =
       initialProjectId={targetProjectId}
       filterInProgress={true}
       meetingMode="project"
-      showModalHeaderStatusBadge={false}
       showDashboardMoveButton={true}
       chatClient={chatClient}
       onDashboardMove={(pid) => onDashboardMove?.(pid || returnProjectId)}

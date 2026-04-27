@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import Header_client from "../components/Header_client";
 import ClientBannerCard from "../components/ClientBannerCard";
 import useStore from "../store/useStore";
-import { portfolioApi } from "../api";
+import { portfolioApi, profileApi } from "../api";
 import { toPortfolioCard } from "../lib/portfolio";
 
 import tutoOnboard from "../assets/tuto_onboard.png";

@@ -297,7 +297,7 @@ export default function AIchatPortfolio() {
         if (parsed) {
           try {
             githubSummary = await fetchGithubRepoSummary(parsed.owner, parsed.repo);
-          } catch (e) {
+          } catch {
             // README 상세 실패는 무시
           }
         }
