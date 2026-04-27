@@ -117,8 +117,10 @@ public class PortfolioService {
 
     private Project resolveProject(Long sourceProjectId) {
         if (sourceProjectId == null) return null;
-        return projectRepository.findById(sourceProjectId)
-                .orElseThrow(() -> new RuntimeException("프로젝트를 찾을 수 없습니다. id=" + sourceProjectId));
+        // 프로젝트가 삭제됐거나 존재하지 않는 경우에도 portfolio 저장은 계속 진행.
+        // (GitHub 등 외부 출처 portfolio 가 stale sourceProjectId 를 가질 수 있어
+        //  포트폴리오 자체 저장이 막히는 회귀 방지)
+        return projectRepository.findById(sourceProjectId).orElse(null);
     }
 
     private String normalizeSourceKey(String sourceKey) {

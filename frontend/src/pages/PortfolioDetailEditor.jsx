@@ -380,10 +380,18 @@ export default function PortfolioDetailEditor() {
       // - http(s) URL은 그대로 저장
       const rawThumb = current.thumbnailUrl || "";
       const thumbnailUrl = rawThumb.startsWith("data:") ? "" : rawThumb;
+      // sourceProjectId 결정:
+      //  - current 가 'sourceProjectId' 키를 가지고 있으면 (null 포함) 명시적 선택으로 존중
+      //  - 키 자체가 없을 때만 portfolioProjects 에서 lookup
+      //  → GitHub 등 외부 출처 portfolio 의 sourceProjectId: null 가 stale lookup
+      //    값으로 덮이는 회귀 차단
+      const explicitSourceProjectId = ('sourceProjectId' in current)
+        ? current.sourceProjectId
+        : (portfolioProjects.find((item) => item.id === selectedProjId)?.sourceProjectId ?? null);
       await portfolioApi.upsertBySource(selectedProjId, toPortfolioRequest({
         ...current,
         sourceKey: selectedProjId,
-        sourceProjectId: current.sourceProjectId ?? portfolioProjects.find((item) => item.id === selectedProjId)?.sourceProjectId ?? null,
+        sourceProjectId: explicitSourceProjectId,
         thumbnailUrl,
       }));
       alert("포트폴리오가 저장되었습니다.");
