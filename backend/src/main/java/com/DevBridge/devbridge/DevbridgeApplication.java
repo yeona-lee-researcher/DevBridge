@@ -26,6 +26,14 @@ public class DevbridgeApplication {
 			}
 		}
 
+		// .env 값을 JVM system property 로 등록.
+		// → OS 환경변수보다 우선순위 높음 (만료된 OS 환경변수 GEMINI_API_KEY 등으로 인한 덮어쓰기 방지).
+		envProps.forEach((k, v) -> {
+			if (v != null && System.getProperty(k) == null) {
+				System.setProperty(k, String.valueOf(v));
+			}
+		});
+
 		SpringApplication app = new SpringApplication(DevbridgeApplication.class);
 		app.setDefaultProperties(envProps);
 		app.run(args);

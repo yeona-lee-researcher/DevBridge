@@ -46,7 +46,7 @@ export function renderProjectOverview(raw) {
     const joined = buf.join(" ").trim();
     if (joined) {
       out.push(
-        <p key={`p${out.length}`} style={{ margin: "0 0 12px", color: "#475569", lineHeight: 1.8, fontFamily: F, fontSize: 14 }}>
+        <p key={`p${out.length}`} style={{ margin: "0 0 12px", color: "#475569", lineHeight: 1.8, fontFamily: F, fontSize: 15 }}>
           {renderInline(joined, `p${out.length}`)}
         </p>
       );
@@ -59,14 +59,14 @@ export function renderProjectOverview(raw) {
     if (line.startsWith("### ")) {
       flushPara();
       out.push(
-        <h4 key={`h${out.length}`} style={{ fontSize: 14, fontWeight: 800, color: "#1E293B", margin: "14px 0 6px", fontFamily: F }}>
+        <h4 key={`h${out.length}`} style={{ fontSize: 15, fontWeight: 800, color: "#1E293B", margin: "14px 0 6px", fontFamily: F }}>
           {renderInline(line.slice(4), `h${out.length}`)}
         </h4>
       );
     } else if (line.startsWith("## ")) {
       flushPara();
       out.push(
-        <h3 key={`H${out.length}`} style={{ fontSize: 15, fontWeight: 800, color: "#1D4ED8", margin: "16px 0 8px", fontFamily: F }}>
+        <h3 key={`H${out.length}`} style={{ fontSize: 16, fontWeight: 800, color: "#1D4ED8", margin: "16px 0 8px", fontFamily: F }}>
           {renderInline(line.slice(3), `H${out.length}`)}
         </h3>
       );
@@ -79,7 +79,7 @@ export function renderProjectOverview(raw) {
       }
       i--;
       out.push(
-        <ul key={`ul${out.length}`} style={{ margin: "0 0 12px", paddingLeft: 20, color: "#475569", lineHeight: 1.8, fontFamily: F, fontSize: 14 }}>
+        <ul key={`ul${out.length}`} style={{ margin: "0 0 12px", paddingLeft: 20, color: "#475569", lineHeight: 1.8, fontFamily: F, fontSize: 15 }}>
           {items.map((it, j) => <li key={j} style={{ marginBottom: 4 }}>{renderInline(it, `ul${out.length}_${j}`)}</li>)}
         </ul>
       );

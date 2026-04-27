@@ -31,7 +31,7 @@ function InlineToggleButton({ isEditing, onEdit, onSave, onSubmit }) {
   const [acceptHovered, setAcceptHovered] = useState(false);
   const isSave = isEditing;
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+    <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0, marginTop: -2, marginLeft: "auto" }}>
       <button
         onClick={isSave ? onSave : onEdit}
         onMouseEnter={() => setHovered(true)}
@@ -88,13 +88,13 @@ function ModuleTitle({ index, title, inline = false, required = false, descripti
   // inline 모드(ProjectRegister 등 페이지 안에 직접 박혀 들어가는 경우): 제목 + (있으면) 설명 카드
   if (inline) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#0F172A", lineHeight: 1.3, fontFamily: F }}>
           {index}. {title}
           {required && <span style={{ color: "#EF4444", marginLeft: 6 }}>*</span>}
         </h2>
         {description && (
-          <div style={{ background: "linear-gradient(135deg, #FEFCE8 0%, #ECFCCB 100%)", border: "1px solid #D9F99D", borderRadius: 10, padding: "8px 14px", display: "flex", gap: 8, alignItems: "flex-start", maxWidth: 520 }}>
+          <div style={{ background: "linear-gradient(135deg, #FEFCE8 0%, #ECFCCB 100%)", border: "1px solid #D9F99D", borderRadius: 10, padding: "8px 14px", display: "flex", gap: 8, alignItems: "flex-start", maxWidth: 420, marginRight: "auto" }}>
             <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1.5 }}>💡</span>
             <p style={{ margin: 0, fontSize: 12, color: "#3F6212", lineHeight: 1.55, fontFamily: F }}>{description}</p>
           </div>
@@ -305,7 +305,7 @@ export function ScopeModal({ onClose, onSubmit, showHeaderStatusBadge = true, mo
     <div style={inline ? { display: "contents" } : OVERLAY}>
       <div style={inline ? CARD_INLINE : CARD}>
         <div style={inline ? { ...HEADER, border: "none", padding: "0 0 10px", position: "static", borderRadius: 0 } : HEADER}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <ModuleTitle index={1} title="작업 범위" inline={inline} required description={readOnly ? null : "프로젝트에서 어떤 작업이 포함되고 어떤 작업이 제외되는지를 명확히 정의합니다. 추후 분쟁을 막기 위한 핵심 항목입니다."} />
               {!inline && showHeaderStatusBadge && <ModuleStatusBadge status={moduleStatus} />}
@@ -404,7 +404,7 @@ export function DeliverablesModal({ onClose, onSubmit, showHeaderStatusBadge = t
     <div style={inline ? { display: "contents" } : OVERLAY}>
       <div style={inline ? CARD_INLINE : CARD}>
         <div style={inline ? { ...HEADER, border: "none", padding: "0 0 10px", position: "static", borderRadius: 0 } : HEADER}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <ModuleTitle index={2} title="최종 전달 결과물 정의" inline={inline} required description={readOnly ? null : "작업이 완료되었을 때 클라이언트에게 인도되는 산출물의 종류·형식·전달 방법을 구체적으로 정합니다."} />
               {!inline && showHeaderStatusBadge && <ModuleStatusBadge status={moduleStatus} />}
@@ -519,7 +519,7 @@ export function ScheduleModal({ onClose, onSubmit, showHeaderStatusBadge = true,
     <div style={inline ? { display: "contents" } : OVERLAY}>
       <div style={inline ? CARD_INLINE : CARD}>
         <div style={inline ? { ...HEADER, border: "none", padding: "0 0 10px", position: "static", borderRadius: 0 } : HEADER}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <ModuleTitle index={3} title="마감 일정 및 마일스톤" inline={inline} required description={readOnly ? null : "전체 일정과 단계별 마일스톤, 각 단계의 시작·종료일을 정합니다. 일정 지연 시 책임 기준이 됩니다."} />
               {!inline && showHeaderStatusBadge && <ModuleStatusBadge status={moduleStatus} />}
@@ -642,7 +642,7 @@ export function PaymentModal({ onClose, onSubmit, showHeaderStatusBadge = true, 
     <div style={inline ? { display: "contents" } : OVERLAY}>
       <div style={inline ? CARD_INLINE : CARD}>
         <div style={inline ? { ...HEADER, border: "none", padding: "0 0 10px", position: "static", borderRadius: 0 } : HEADER}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <ModuleTitle index={4} title="총 금액 및 정산 방식" inline={inline} required description={readOnly ? null : "계약 총액과 지급 방식(계약금·중도금·잔금 등)을 명확히 합니다. 단위와 부가세 포함 여부도 확인하세요."} />
               {!inline && showHeaderStatusBadge && <ModuleStatusBadge status={moduleStatus} />}
@@ -771,7 +771,7 @@ export function RevisionModal({ onClose, onSubmit, showHeaderStatusBadge = true,
     <div style={inline ? { display: "contents" } : OVERLAY}>
       <div style={inline ? CARD_INLINE : CARD}>
         <div style={inline ? { ...HEADER, border: "none", padding: "0 0 10px", position: "static", borderRadius: 0 } : HEADER}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <ModuleTitle index={5} title="수정 가능 범위" inline={inline} required description={readOnly ? null : "작업 완료 후 가능한 수정 횟수와 추가 수정에 대한 비용·범위를 명시합니다."} />
               {!inline && showHeaderStatusBadge && <ModuleStatusBadge status={moduleStatus} />}
@@ -867,7 +867,7 @@ export function CompletionModal({ onClose, onSubmit, showHeaderStatusBadge = tru
     <div style={inline ? { display: "contents" } : OVERLAY}>
       <div style={inline ? CARD_INLINE : CARD}>
         <div style={inline ? { ...HEADER, border: "none", padding: "0 0 10px", position: "static", borderRadius: 0 } : HEADER}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <ModuleTitle index={6} title="완료 기준" inline={inline} required description={readOnly ? null : "어떤 조건이 충족되어야 '완료'로 인정할지 객관적인 기준을 정합니다."} />
               {!inline && showHeaderStatusBadge && <ModuleStatusBadge status={moduleStatus} />}
@@ -1022,7 +1022,7 @@ export function SpecialTermsModal({ onClose, onSubmit, showHeaderStatusBadge = t
     <div style={inline ? { display: "contents" } : OVERLAY}>
       <div style={inline ? CARD_INLINE : CARD}>
         <div style={inline ? { ...HEADER, border: "none", padding: "0 0 10px", position: "static", borderRadius: 0 } : HEADER}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10, gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <ModuleTitle index={7} title="추가 특약 (선택)" inline={inline} description={readOnly ? null : "위 항목 외에 추가로 합의할 특약 사항을 자유롭게 적습니다. (선택 사항)"} />
               {!inline && showHeaderStatusBadge && <ModuleStatusBadge status={moduleStatus} />}

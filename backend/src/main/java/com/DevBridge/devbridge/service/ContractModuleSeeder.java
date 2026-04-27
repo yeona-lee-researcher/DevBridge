@@ -35,6 +35,42 @@ public class ContractModuleSeeder {
     private final ProjectRepository projectRepository;
     private final ObjectMapper om = new ObjectMapper();
 
+    /**
+     * 기존 payment 모듈의 total 이 budgetAmount × 10000 대비 1/10 미만이면
+     * (예: budgetAmount 단위 오해석으로 ₩3,000 같이 저장된 경우) payment 모듈을 통째로 재생성.
+     * 협의완료 상태도 그대로 유지하기 위해 status 는 유지하고 data 만 덮어씀.
+     * @return true 재생성됨 / false skip
+     */
+    @Transactional
+    public boolean repairPaymentIfStale(Project p) {
+        if (p == null || p.getId() == null) return false;
+        if (p.getBudgetAmount() == null || p.getBudgetAmount() <= 0) return false;
+        long expectedWon = (long) p.getBudgetAmount() * 10_000L;
+
+        ProjectModule pm = projectModuleRepository.findByProjectIdAndModuleKey(p.getId(), "payment").orElse(null);
+        if (pm == null) return false;
+
+        long currentTotal = 0L;
+        try {
+            String json = pm.getData();
+            if (json != null) {
+                String totalStr = om.readTree(json).path("total").asText("");
+                String digits = totalStr.replaceAll("[^0-9]", "");
+                if (!digits.isEmpty()) currentTotal = Long.parseLong(digits);
+            }
+        } catch (Exception ignore) {}
+
+        // 정상치(>= expected/10) 이면 건드리지 않음 (협상으로 변경된 정상 데이터 보호)
+        if (currentTotal >= expectedWon / 10) return false;
+
+        ObjectNode payment = buildPayment(p);
+        try { pm.setData(om.writeValueAsString(payment)); }
+        catch (Exception e) { return false; }
+        projectModuleRepository.save(pm);
+        log.info("[ContractModuleSeeder] payment 모듈 자동 보정 projectId={} {} → {}", p.getId(), currentTotal, expectedWon);
+        return true;
+    }
+
     /** 신규 프로젝트 1건의 7개 모듈 시드 (이미 있으면 skip). */
     @Transactional
     public void seedForProject(Project p) {
@@ -214,11 +250,12 @@ public class ContractModuleSeeder {
     }
 
     private long pickBudget(Project p) {
-        if (p.getBudgetAmount() != null && p.getBudgetAmount() > 0) return p.getBudgetAmount();
+        // budget* 컬럼은 원 단위로 저장됨. (구 데이터 만원 단위 → DataSeeder/마이그레이션이 ×10000 보정)
+        if (p.getBudgetAmount() != null && p.getBudgetAmount() > 0) return (long) p.getBudgetAmount();
         if (p.getBudgetMin() != null && p.getBudgetMax() != null) return ((long)p.getBudgetMin() + p.getBudgetMax()) / 2;
-        if (p.getBudgetMax() != null) return p.getBudgetMax();
-        if (p.getBudgetMin() != null) return p.getBudgetMin();
-        if (p.getMonthlyRate() != null && p.getContractMonths() != null) return (long)p.getMonthlyRate() * p.getContractMonths();
+        if (p.getBudgetMax() != null) return (long) p.getBudgetMax();
+        if (p.getBudgetMin() != null) return (long) p.getBudgetMin();
+        if (p.getMonthlyRate() != null && p.getContractMonths() != null) return (long) p.getMonthlyRate() * p.getContractMonths();
         return 10_000_000L;
     }
 

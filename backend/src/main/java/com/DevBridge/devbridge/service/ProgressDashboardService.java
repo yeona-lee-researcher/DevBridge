@@ -27,14 +27,19 @@ public class ProgressDashboardService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final ProjectApplicationRepository applicationRepository;
+    private final MilestoneSeedingService milestoneSeedingService;
 
     public ProjectAttachmentRepository getAttachmentRepository() { return attachmentRepository; }
 
     // ==================== Milestones ====================
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<MilestoneResponse> listMilestones(Long projectId) {
         ensureMember(projectId);
+        // 7개 모듈 모두 협의완료인데 마일스톤이 비어있으면 lazy 시드 (멱등).
+        // IN_PROGRESS 전이 누락된 기존 프로젝트도 대시보드 진입 시 자동 복구.
+        try { milestoneSeedingService.seedIfNeeded(projectId); }
+        catch (Exception e) { /* 시드 실패는 조회 막지 않음 */ }
         return milestoneRepository.findByProjectIdOrderBySeqAsc(projectId)
                 .stream().map(MilestoneResponse::from).toList();
     }
@@ -353,9 +358,12 @@ public class ProgressDashboardService {
 
     // ==================== Aggregate ====================
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> dashboard(Long projectId) {
         ensureMember(projectId);
+        // 7개 모듈 모두 협의완료인데 마일스톤이 비어있으면 lazy 시드 (멱등).
+        try { milestoneSeedingService.seedIfNeeded(projectId); }
+        catch (Exception e) { /* 시드 실패는 대시보드 조회 막지 않음 */ }
         Project p = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("프로젝트를 찾을 수 없습니다."));
 

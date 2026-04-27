@@ -7,12 +7,14 @@ import com.DevBridge.devbridge.repository.*;
 import com.DevBridge.devbridge.util.EnumMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProjectService {
@@ -24,6 +26,7 @@ public class ProjectService {
     private final SkillMasterRepository skillMasterRepository;
     private final ContractModuleSeeder contractModuleSeeder;
     private final ProjectModuleRepository projectModuleRepository;
+    private final MilestoneSeedingService milestoneSeedingService;
 
     private static final ObjectMapper OM = new ObjectMapper();
 
@@ -239,6 +242,13 @@ public class ProjectService {
         }
         p.setStatus(target);
         Project saved = projectRepository.save(p);
+
+        // IN_PROGRESS 전이 시: 협의 모듈(schedule.phases + payment.stages + deliverable.deliverables) 로부터
+        // 마일스톤이 비어 있으면 자동 시드. 멱등(이미 있으면 skip).
+        if (target == Project.ProjectStatus.IN_PROGRESS) {
+            try { milestoneSeedingService.seedIfNeeded(projectId); }
+            catch (Exception e) { log.warn("[ProjectService] 마일스톤 자동 시드 실패 projectId={}: {}", projectId, e.getMessage()); }
+        }
         List<String> tags = projectTagRepository.findByProject(saved).stream()
                 .map(t -> t.getTag()).toList();
         List<ProjectSkillMapping> mappings = projectSkillMappingRepository.findByProject(saved);
@@ -501,5 +511,6 @@ public class ProjectService {
         if (p == null || p.getId() == null) return 70;
         return 60 + (int) ((p.getId() * 11 + 7) % 40);
     }
+
 }
 

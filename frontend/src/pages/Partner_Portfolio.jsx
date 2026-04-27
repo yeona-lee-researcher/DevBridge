@@ -9,7 +9,7 @@ import { profileApi } from "../api/profile.api";
 import { toPortfolioCard } from "../lib/portfolio";
 
 import tutoOnboard from "../assets/tuto_onboard.png";
-import tutoIncome from "../assets/tuto_income.png";
+import userGuide from "../assets/user_guide.png";
 import tutoSolution from "../assets/tuto_solution.png";
 
 
@@ -410,10 +410,10 @@ const NEW_STEPS_DATA = [
   },
   {
     id: 2,
-    thumbnail: tutoIncome,
-    imgBg: "#E8E0D8",
-    title: "Developer Income 가계부",
-    desc: "Manage and track your developer earnings",
+    thumbnail: userGuide,
+    imgBg: "#FEF9C3",
+    title: "이용가이드 센터",
+    desc: "DevBridge 사용법을 한눈에 살펴보세요",
   },
   {
     id: 3,
@@ -507,7 +507,7 @@ function NewSteps() {
   const navigate = useNavigate();
   const destinations = {
     1: "/onboarding",
-    2: "/partner_dashboard?tab=income",
+    2: "/usage_guide",
     3: "/solution_market",
   };
   return (

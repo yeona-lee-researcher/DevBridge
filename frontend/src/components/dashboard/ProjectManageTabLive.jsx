@@ -3,7 +3,7 @@
  * Client / Partner 대시보드 공용. role 으로 분기.
  * 기존 ProjectDetailDash 디자인 완전 유지 + 실 DB 연결.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   projectsApi,
   applicationsApi,
@@ -14,6 +14,16 @@ import {
   projectModulesApi,
   projectAttachmentsApi,
 } from "../../api";
+import {
+  ScopeModal,
+  DeliverablesModal,
+  ScheduleModal,
+  PaymentModal,
+  RevisionModal as RevisionModuleModal,
+  CompletionModal,
+  SpecialTermsModal,
+} from "../ContractModals";
+import { renderProjectOverview } from "../../lib/projectMarkdown";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -235,8 +245,11 @@ function ProjectSummaryCard({ project, role, onOpen, onMessage }) {
   const isCompleted = project.status === "COMPLETED" || project.status === "완료";
   const isPreContract = project.status === "CLOSED" || project.status === "RECRUITING";
   const color = isCompleted ? "#16A34A" : isPreContract ? "#94A3B8" : project.progress >= 70 ? "#3B82F6" : "#F59E0B";
-  // 완료된 프로젝트가 아니면 deadline 이 있는 한 D-Day 뱃지 표시 (CLOSED 포함).
-  const dday = !isCompleted ? calcDDay(project.deadline) : null;
+  // 완료된 프로젝트가 아니면 D-Day 뱃지. 마지막 마일스톤 endDate 우선 (협의된 일정),
+  // 없으면 deadline 컬럼 fallback (등록시 입력값, 종종 과거 값이라 후순위).
+  const lastMs = Array.isArray(project.milestones) ? project.milestones[project.milestones.length - 1] : null;
+  const effectiveDeadline = lastMs?.endDate || project.deadline;
+  const dday = !isCompleted ? calcDDay(effectiveDeadline) : null;
   const badgeLabel = isCompleted ? "완료" : isPreContract ? "시작 전" : "진행 중";
   const badgeBg    = isCompleted ? "#F0FDF4" : isPreContract ? "#F1F5F9" : "#EFF6FF";
   const badgeColor = isCompleted ? "#16A34A" : isPreContract ? "#64748B" : "#3B82F6";
@@ -361,10 +374,18 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
   const files = attachments.filter(a => a.kind==="FILE");
   const links = attachments.filter(a => a.kind==="LINK");
   const totalAmount = milestones.reduce((s,m) => s+(m.amount||0), 0);
-  const confirmedModules = Object.values(modules).filter(m => isAgreementCompleted(m?.status)).length;
-  const dday = calcDDay(project.deadline || project.deadlineDate);
+  // project.budgetAmount 는 만원 단위로 저장됨 (ProjectRegister/AIchatProject 양쪽 모두).
+  // 마일스톤이 아직 없을 때 fallback 용으로 원 단위로 변환.
+  const budgetAmountWon = Number(project.budgetAmount || 0) * 10000;
+  // D-Day 우선순위: 마지막 마일스톤 endDate (협의된 진짜 일정) > 프로젝트 deadline 컬럼 (등록시 입력값, 종종 과거)
+  const lastMs = milestones[milestones.length - 1];
+  const effectiveDeadline = lastMs?.endDate || project.deadline || project.deadlineDate;
+  const dday = calcDDay(effectiveDeadline);
   const phases = buildPhases(milestones);
+  // 활성 마일스톤: IN_PROGRESS / SUBMITTED / REVISION_REQUESTED 중 가장 빠른 것.
+  // 없으면 첫 PENDING (= 진행 시작 안 한 첫 단계). 모두 완료된 경우만 마지막 마일스톤.
   const currentMs = milestones.find(m => m.status==="IN_PROGRESS"||m.status==="SUBMITTED"||m.status==="REVISION_REQUESTED")
+    || milestones.find(m => m.status==="PENDING")
     || milestones[milestones.length-1];
   const currentProgress = milestones.length===0 ? 0
     : Math.round((milestones.filter(m=>m.status==="APPROVED"||m.status==="COMPLETED").length/milestones.length)*100);
@@ -373,8 +394,8 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
     <div style={{ position:"relative", fontFamily:F }}>
       {/* breadcrumb + 제목 헤더 */}
       <div style={{ marginBottom:20 }}>
-        {/* 목록으로 돌아가기 */}
-        <div style={{ marginBottom:6 }}>
+        {/* 목록으로 돌아가기 + 미팅으로 이동 버튼 (한 줄) */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8, gap:12 }}>
           <button onClick={onBack}
             onMouseEnter={e => { e.currentTarget.style.background="#EFF6FF"; e.currentTarget.style.color="#1E40AF"; }}
             onMouseLeave={e => { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#3B82F6"; }}
@@ -384,452 +405,80 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
               transition:"background 0.12s, color 0.12s" }}>
             <span style={{ fontSize:15, lineHeight:1 }}>‹</span> 목록으로 돌아가기
           </button>
+          <button
+            onClick={() => onOpenProjectMeeting?.(projectId)}
+            onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg,#3b82f6,#2563eb,#4f46e5)"; e.currentTarget.style.boxShadow="0 4px 14px rgba(99,102,241,0.45)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background=PRIMARY_GRAD; e.currentTarget.style.boxShadow="0 3px 10px rgba(99,102,241,0.28)"; }}
+            style={{ padding:"10px 18px", borderRadius:10, border:"none", background:PRIMARY_GRAD,
+              color:"white", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:F,
+              boxShadow:"0 3px 10px rgba(99,102,241,0.28)", transition:"background 0.15s,box-shadow 0.15s",
+              whiteSpace:"nowrap", flexShrink:0 }}>
+            미팅으로 이동하기
+          </button>
         </div>
-        {/* breadcrumb 줄 + 미팅으로 이동 버튼 */}
+        {/* breadcrumb 줄 + D-Day 뱃지 */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8, gap:12 }}>
           <div style={{ fontSize:13.5, color:"#94A3B8", fontFamily:F }}>
             <span style={{ cursor:"pointer", color:"#3B82F6" }} onClick={onBack}>Dashboard</span>{" / "}
             <span>Project Progress</span>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-            {dday && (
-              <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 12px",
-                borderRadius:99, background:"#F0FFF4", border:"1px solid #BBF7D0" }}>
-                <span style={{ width:6, height:6, borderRadius:"50%", background:"#22C55E", display:"inline-block" }} />
-                <span style={{ fontSize:12.5, fontWeight:700, color:"#16A34A", fontFamily:F }}>
-                  진행 중 · {dday}
-                </span>
-              </div>
-            )}
-            <button
-              onClick={() => onOpenProjectMeeting?.(projectId)}
-              onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg,#3b82f6,#2563eb,#4f46e5)"; e.currentTarget.style.boxShadow="0 4px 14px rgba(99,102,241,0.45)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background=PRIMARY_GRAD; e.currentTarget.style.boxShadow="0 3px 10px rgba(99,102,241,0.28)"; }}
-              style={{ padding:"7px 16px", borderRadius:9, border:"none", background:PRIMARY_GRAD,
-                color:"white", fontSize:13.5, fontWeight:700, cursor:"pointer", fontFamily:F,
-                boxShadow:"0 3px 10px rgba(99,102,241,0.28)", transition:"background 0.15s,box-shadow 0.15s" }}>
-              미팅으로 이동하기
-            </button>
-          </div>
+          {dday && (
+            <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 12px",
+              borderRadius:99, background:"#F0FFF4", border:"1px solid #BBF7D0" }}>
+              <span style={{ width:6, height:6, borderRadius:"50%", background:"#22C55E", display:"inline-block" }} />
+              <span style={{ fontSize:12.5, fontWeight:700, color:"#16A34A", fontFamily:F }}>
+                진행 중 · {dday}
+              </span>
+            </div>
+          )}
         </div>
-        {/* 프로젝트 제목 + 설명 */}
-        <h2 style={{ fontSize:21, fontWeight:800, color:"#1E293B", margin:"0 0 6px", fontFamily:F }}>
+        {/* 프로젝트 제목 — Header DevBridge 그라데이션 */}
+        <h2 style={{ fontSize:23, fontWeight:900, margin:"0 0 6px", fontFamily:F,
+          background:"linear-gradient(90deg, #7DD3FC 0%, #38BDF8 25%, #818CF8 65%, #93C5FD 100%)",
+          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
+          display:"inline-block", letterSpacing:"-0.3px" }}>
           {project.title}
         </h2>
-        {project.description && (
-          <p style={{ fontSize:14.5, color:"#64748B", margin:0, fontFamily:F }}>{project.description}</p>
-        )}
       </div>
 
-      <div style={{ display:"flex", gap:18, alignItems:"flex-start" }}>
-        {/* ── 왼쪽 메인 ── */}
-        <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:16 }}>
-
-          {/* 마일스톤 진행도 + Phase stepper */}
-          <div style={{ border:"1.5px solid #E5E7EB", borderRadius:14, padding:"20px 22px", background:"white" }}>
-            {currentMs && (
-              <>
-                <h3 style={{ fontSize:18, fontWeight:800, color:"#1E293B", margin:"0 0 6px", fontFamily:F }}>
-                  {currentMs.seq}번째 마일스톤 ✅ {currentMs.title}
-                </h3>
-                {currentMs.description && (
-                  <p style={{ fontSize:14.5, color:"#64748B", margin:"0 0 14px", fontFamily:F, lineHeight:1.6 }}>
-                    {currentMs.description}
-                  </p>
-                )}
-              </>
-            )}
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-              <span style={{ fontSize:15.5, fontWeight:700, color:"#3B82F6", fontFamily:F }}>Progress Status</span>
-              <span style={{ fontSize:19.5, fontWeight:800, color:"#1E293B", fontFamily:F }}>{currentProgress}%</span>
-            </div>
-            <div style={{ width:"100%", height:8, borderRadius:99, background:"#F1F5F9", marginBottom:24, overflow:"hidden" }}>
-              <div style={{ width:`${currentProgress}%`, height:"100%", borderRadius:99,
-                background:"linear-gradient(90deg,#60a5fa,#3b82f6)" }} />
-            </div>
-            {/* Phase stepper */}
-            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", position:"relative" }}>
-              <div style={{ position:"absolute", top:17, left:"10%", right:"10%", height:2, background:"#E2E8F0", zIndex:0 }} />
-              {phases.map(ph => (
-                <div key={ph.num} style={{ display:"flex", flexDirection:"column", alignItems:"center", flex:1, position:"relative", zIndex:1 }}>
-                  <div style={{ width:34, height:34, borderRadius:"50%",
-                    background: ph.status==="done"?"#3B82F6":ph.status==="active"?"white":"#F1F5F9",
-                    border: ph.status==="active"?"2.5px solid #3B82F6":ph.status==="done"?"none":"2px solid #E2E8F0",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:14.5, fontWeight:700,
-                    color: ph.status==="done"?"white":ph.status==="active"?"#3B82F6":"#94A3B8",
-                    boxShadow:(ph.status==="done"||ph.status==="active")?"0 2px 8px rgba(59,130,246,0.18)":"none" }}>
-                    {ph.num}
-                  </div>
-                  <span style={{ fontSize:13.5, fontWeight:ph.status==="active"?700:500,
-                    color:ph.status==="active"?"#3B82F6":ph.status==="done"?"#374151":"#94A3B8",
-                    fontFamily:F, marginTop:6, textAlign:"center" }}>{ph.label}</span>
-                  <span style={{ fontSize:12.5, color:"#94A3B8", fontFamily:F, marginTop:2 }}>{ph.date}</span>
-                </div>
-              ))}
-            </div>
+      {/* 프로젝트 개요 — full-width (DB desc 마크다운 렌더) */}
+      {project.description && (
+        <div style={{ border:"1.5px solid #E5E7EB", borderRadius:14, padding:"22px 26px", background:"white", marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+            <div style={{ width:4, height:24, borderRadius:3, background:"#3B82F6" }} />
+            <span style={{ fontSize:17, fontWeight:800, color:"#1E293B", fontFamily:F }}>프로젝트 개요</span>
           </div>
-
-          {/* 마일스톤 진행 */}
-          <div style={{ border:"1.5px solid #F1F5F9", borderRadius:14, padding:"20px 22px", background:"white" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-              <span style={{ fontSize:18, fontWeight:800, color:"#1E293B", fontFamily:F }}>마일스톤 진행</span>
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {milestones.map((ms) => {
-                const esc = escrows.find(e => e.milestoneId===ms.id);
-                const eDisplayStatus = escrowDisplayStatus(esc, ms.status);
-                const es = ESCROW_STYLES[eDisplayStatus] || ESCROW_STYLES["결제 대기"];
-                const msLabel = MS_STATUS_LABEL[ms.status] || ms.status;
-                const msColor = MS_STATUS_COLOR[ms.status] || "#94A3B8";
-                return (
-                  <div key={ms.id} style={{
-                    border:"1.5px solid "+(eDisplayStatus==="정산 완료"?"#BBF7D0":eDisplayStatus==="납품 검수 중"?"#C4B5FD":"#F1F5F9"),
-                    borderRadius:10, padding:"14px 18px", background:"white" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                      <div style={{ flex:1 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                          <span style={{ padding:"2px 8px", borderRadius:6, fontSize:12.5, fontWeight:700,
-                            background:eDisplayStatus==="정산 완료"?"#F0FDF4":"#EFF6FF",
-                            border:"1px solid "+(eDisplayStatus==="정산 완료"?"#BBF7D0":"#BFDBFE"),
-                            color:eDisplayStatus==="정산 완료"?"#16A34A":"#3B82F6", fontFamily:F }}>
-                            {eDisplayStatus==="정산 완료"?"완료":"진행 중"}
-                          </span>
-                          <span style={{ fontSize:15.5, fontWeight:700, color:"#1E293B", fontFamily:F }}>{ms.title}</span>
-                        </div>
-                        <div style={{ fontSize:13.5, color:"#64748B", fontFamily:F, display:"flex", gap:14, flexWrap:"wrap" }}>
-                          <span>시작일: <strong style={{ color:"#374151" }}>{fmtDate(ms.startDate)}</strong></span>
-                          <span>마감일: <strong style={{ color:"#374151" }}>{fmtDate(ms.endDate)}</strong></span>
-                          {ms.submittedAt && <span style={{ color:"#7C3AED" }}>납품: {fmtDate(ms.submittedAt)}</span>}
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:12, flexShrink:0, marginLeft:8 }}>
-                        <span style={{ fontSize:13.5, fontWeight:700, color:msColor, fontFamily:F, minWidth:70, textAlign:"right" }}>
-                          {/* REVISION_REQUESTED + CLIENT 일 때는 버튼이 상태레이블을 대체하므로 텍스트 숨김 */}
-                          {!(role==="CLIENT" && ms.status==="REVISION_REQUESTED") && msLabel}
-                        </span>
-                        {/* 역할별 액션 버튼 */}
-                        {role==="CLIENT" && ms.status==="SUBMITTED" && (
-                          <div style={{ display:"flex", gap:6 }}>
-                            <button onClick={() => setReviseOpen(ms)} style={{ padding:"6px 12px", borderRadius:8,
-                              border:"1px solid #FECACA", background:"white", color:"#DC2626",
-                              fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:F }}>수정 요청</button>
-                            <button onClick={() => handleApprove(ms)} style={{ padding:"6px 12px", borderRadius:8,
-                              border:"none", background:PRIMARY_GRAD, color:"white",
-                              fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:F }}>승인</button>
-                          </div>
-                        )}
-                        {role==="CLIENT" && ms.status==="REVISION_REQUESTED" && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await milestonesApi.cancelRevision?.(projectId, ms.id);
-                                setRevisionWithdrawnIds(prev => new Set([...prev, ms.id]));
-                                showToast("✅ 수정 요청이 철회되었습니다."); reload();
-                              } catch { showToast("수정 철회에 실패했습니다."); }
-                            }}
-                            style={{ padding:"6px 14px", borderRadius:8, border:"none",
-                              background:"#FEF3C7", color:"#92400E", fontWeight:700, fontSize:12,
-                              cursor:"pointer", fontFamily:F }}>
-                            수정 철회
-                          </button>
-                        )}
-                        {role==="CLIENT" && (!esc || esc?.status==="PENDING") && ms.status!=="SUBMITTED" && ms.status!=="APPROVED" && ms.status!=="COMPLETED" && (
-                          <button onClick={() => setPayOpen(esc || { milestoneId: ms.id, amount: ms.amount, status: "PENDING" })}
-                            onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg, #BBF7D0 0%, #86EFAC 100%)"; e.currentTarget.style.boxShadow="0 4px 12px rgba(134,239,172,0.5)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background="linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)"; e.currentTarget.style.boxShadow="0 1px 4px rgba(187,247,208,0.4)"; }}
-                            style={{ padding:"6px 16px", borderRadius:8, border:"none",
-                              background:"linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)",
-                              color:"#166534", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:F,
-                              boxShadow:"0 1px 4px rgba(187,247,208,0.4)", transition:"all 0.18s" }}>결제하기</button>
-                        )}
-                        {role==="PARTNER" && (ms.status==="IN_PROGRESS"||ms.status==="REVISION_REQUESTED") && (
-                          <button onClick={() => setSubmitOpen(ms)} style={{ padding:"6px 14px", borderRadius:8,
-                            border:"none", background:PRIMARY_GRAD, color:"white",
-                            fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:F }}>
-                            {ms.status==="REVISION_REQUESTED"?"재제출":"제출하기"}
-                          </button>
-                        )}
-                        {(ms.status==="APPROVED"||ms.status==="COMPLETED") && (
-                          <span style={{ padding:"6px 12px", borderRadius:8, border:"1px solid #BBF7D0",
-                            background:"white", color:"#15803D", fontWeight:600, fontSize:12, fontFamily:F }}>
-                            ✅ 완료
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {/* 완료 기준 */}
-                    {ms.completionCriteria && (
-                      <div style={{ marginBottom:10, padding:10, borderRadius:8, background:"#FFFBEB", border:"1px solid #FDE68A" }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:"#92400E", marginBottom:3 }}>✅ 완료 기준</div>
-                        <div style={{ fontSize:12, color:"#713F12", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{ms.completionCriteria}</div>
-                      </div>
-                    )}
-                    {/* 제출 메모 */}
-                    {ms.submittedAt && ms.submissionNote && (
-                      <div style={{ marginBottom:8, padding:10, borderRadius:8, background:"#F0F9FF", border:"1px solid #BFDBFE" }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:"#1E40AF", marginBottom:3 }}>
-                          📤 제출 ({fmtDate(ms.submittedAt)})
-                        </div>
-                        <div style={{ fontSize:12, color:"#1E293B", lineHeight:1.6 }}>{ms.submissionNote}</div>
-                        {ms.submissionFileUrl && (
-                          <a href={ms.submissionFileUrl} target="_blank" rel="noreferrer"
-                            style={{ display:"inline-block", marginTop:5, fontSize:12, color:"#2563EB",
-                              fontWeight:600, textDecoration:"underline" }}>📎 제출 파일 열기</a>
-                        )}
-                      </div>
-                    )}
-                    {/* 수정 요청 사유 */}
-                    {ms.revisionReason && (
-                      <div style={{ marginBottom:8, padding:10, borderRadius:8, background:"#FEF2F2", border:"1px solid #FECACA" }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:"#991B1B", marginBottom:3 }}>⚠️ 수정 요청 사유</div>
-                        <div style={{ fontSize:12, color:"#7F1D1D", lineHeight:1.6 }}>{ms.revisionReason}</div>
-                      </div>
-                    )}
-                    {/* 수정 철회 시스템 카드 (철회 직후 로컴 상태) */}
-                    {revisionWithdrawnIds.has(ms.id) && (
-                      <div style={{ marginBottom:8, padding:10, borderRadius:8, background:"#F0FDF4", border:"1px solid #86EFAC" }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:"#15803D", marginBottom:3 }}>✅ 수정 철회됨</div>
-                        <div style={{ fontSize:12, color:"#166534", lineHeight:1.6 }}>수정 요청이 철회되었습니다. 파트너에게 수정 철회가 안내됩니다.</div>
-                      </div>
-                    )}
-                    {/* 에스크로 상태 바 */}
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                      padding:"8px 12px", borderRadius:8, background:es.bg, border:"1px solid "+es.border }}>
-                      <span style={{ fontSize:13.5, fontWeight:700, color:es.color, fontFamily:F,
-                        display:"flex", alignItems:"center", gap:5 }}>
-                        {es.icon} {eDisplayStatus}
-                        <span style={{ fontWeight:500, color:"#64748B", marginLeft:6, fontSize:12.5 }}>
-                          {krw(esc?.amount||ms.amount)}원
-                        </span>
-                      </span>
-                      {eDisplayStatus==="결제 대기" && (
-                        <span style={{ fontSize:12.5, color:"#94A3B8", fontFamily:F }}>🕐 클라이언트 결제 대기 중...</span>
-                      )}
-                      {eDisplayStatus==="에스크로 보관 중" && (
-                        <span style={{ fontSize:12.5, fontWeight:600, color:"#1D4ED8", fontFamily:F }}>🔒 에스크로 확인됨 — 납품 후 정산</span>
-                      )}
-                      {eDisplayStatus==="납품 검수 중" && (
-                        <span style={{ fontSize:12.5, fontWeight:600, color:"#5B21B6", fontFamily:F }}>🔍 납품 제출 완료 — 검수 중...</span>
-                      )}
-                      {eDisplayStatus==="정산 완료" && (
-                        <span style={{ fontSize:12.5, fontWeight:700, color:"#15803D", fontFamily:F }}>
-                          ✅ {krw(esc?.amount||ms.amount)}원 정산 완료
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Files / Links */}
-          <div style={{ border:"1.5px solid #F1F5F9", borderRadius:14, padding:"20px 22px", background:"white" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-              <div style={{ display:"flex", gap:0 }}>
-                {[["files","Files"],["links","External Links"]].map(([key,label]) => (
-                  <button key={key} onClick={() => setFileTab(key)}
-                    style={{ padding:"4px 16px 10px", border:"none", background:"none",
-                      fontSize:15.5, fontWeight:600, cursor:"pointer", fontFamily:F,
-                      color:fileTab===key?"#3B82F6":"#94A3B8",
-                      borderBottom:fileTab===key?"2.5px solid #3B82F6":"2.5px solid transparent" }}>
-                    {label}
-                  </button>
+          {renderProjectOverview(project.description)}
+          {Array.isArray(project.tags) && project.tags.length > 0 && (
+            <div style={{ marginTop:14, paddingTop:14, borderTop:"1px solid #F1F5F9" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                <div style={{ width:4, height:18, borderRadius:3, background:"#3B82F6" }} />
+                <span style={{ fontSize:15.5, fontWeight:800, color:"#1E293B", fontFamily:F }}>필요 기술 스택</span>
+              </div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {project.tags.map((t, i) => (
+                  <span key={i} style={{ padding:"6px 12px", borderRadius:99, background:"#EFF6FF",
+                    color:"#1D4ED8", fontSize:14, fontWeight:700, fontFamily:F, border:"1px solid #BFDBFE" }}>
+                    {String(t).startsWith("#") ? t : `#${t}`}
+                  </span>
                 ))}
               </div>
-              <div style={{ display:"flex", gap:8 }}>
-                <button onClick={() => setAddFileOpen(true)}
-                  style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #BFDBFE",
-                    background:"#EFF6FF", color:"#1E40AF", fontSize:12.5, fontWeight:700,
-                    cursor:"pointer", fontFamily:F }}>+ 파일 업로드</button>
-                <button onClick={() => setAddLinkOpen(true)}
-                  style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #DDD6FE",
-                    background:"#F5F3FF", color:"#5B21B6", fontSize:12.5, fontWeight:700,
-                    cursor:"pointer", fontFamily:F }}>+ 링크 추가</button>
-              </div>
             </div>
-            {fileTab==="files" ? (
-              <div>
-                <div style={{ display:"grid", gridTemplateColumns:"1.8fr 1.2fr 0.7fr 0.6fr 52px",
-                  padding:"8px 12px", borderBottom:"1px solid #F1F5F9" }}>
-                  {["파일명","설명","날짜","크기","다운로드"].map(h => (
-                    <span key={h} style={{ fontSize:12.5, fontWeight:700, color:"#94A3B8",
-                      fontFamily:F, letterSpacing:"0.05em" }}>{h}</span>
-                  ))}
-                </div>
-                {files.length===0 && <div style={{ padding:"16px 12px", color:"#94A3B8", fontSize:13, fontFamily:F }}>첨부 파일이 없습니다.</div>}
-                {files.map((f,i) => {
-                  const isExp = expandedAttachId === f.id;
-                  const fmtSize = f.sizeBytes
-                    ? f.sizeBytes >= 1024*1024
-                      ? (f.sizeBytes/1024/1024).toFixed(1)+" MB"
-                      : (f.sizeBytes/1024).toFixed(0)+" KB"
-                    : "-";
-                  const preview = f.notes ? (f.notes.length > 20 ? f.notes.slice(0,20)+"…" : f.notes) : "-";
-                  return (
-                    <div key={f.id} style={{ borderBottom:i<files.length-1?"1px solid #F8FAFC":"none" }}>
-                      <div style={{ display:"grid", gridTemplateColumns:"1.8fr 1.2fr 0.7fr 0.6fr 52px",
-                        padding:"13px 12px", alignItems:"center" }}>
-                        <button onClick={() => setExpandedAttachId(isExp ? null : f.id)}
-                          style={{ display:"flex", alignItems:"center", gap:8, fontSize:14.5,
-                            color:"#1E293B", fontFamily:F, background:"none", border:"none",
-                            cursor:"pointer", padding:0, textAlign:"left" }}>
-                          <span style={{ fontSize:17 }}>📄</span>
-                          <span>{f.name}</span>
-                        </button>
-                        <span
-                          title={f.notes || ""}
-                          style={{ fontSize:13, color: f.notes ? "#475569" : "#CBD5E1",
-                            fontFamily:F, cursor: f.notes ? "help" : "default",
-                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {preview}
-                        </span>
-                        <span style={{ fontSize:13, color:"#475569", fontFamily:F }}>{fmtDate(f.createdAt)}</span>
-                        <span style={{ fontSize:13, color:"#475569", fontFamily:F }}>{fmtSize}</span>
-                        <button
-                          title="다운로드"
-                          onClick={() => {
-                            const token = localStorage.getItem("accessToken");
-                            fetch(`/api/projects/${f.projectId}/attachments/${f.id}/download`, {
-                              headers: token ? { Authorization: `Bearer ${token}` } : {}
-                            })
-                              .then(async res => {
-                                if (!res.ok) {
-                                  const err = await res.json().catch(() => ({}));
-                                  showToast(err.message || "다운로드에 실패했습니다.");
-                                  return;
-                                }
-                                const blob = await res.blob();
-                                const blobUrl = URL.createObjectURL(blob);
-                                const anchor = document.createElement("a");
-                                anchor.href = blobUrl;
-                                anchor.download = f.name;
-                                document.body.appendChild(anchor);
-                                anchor.click();
-                                document.body.removeChild(anchor);
-                                URL.revokeObjectURL(blobUrl);
-                              })
-                              .catch(() => showToast("다운로드에 실패했습니다."));
-                          }}
-                          style={{ display:"flex", alignItems:"center",
-                            justifyContent:"center", width:48, height:40, borderRadius:8,
-                            background:"#F1F5F9", color:"#475569", border:"none", cursor:"pointer",
-                            fontSize:16, transition:"background 0.12s" }}
-                          onMouseEnter={e => { e.currentTarget.style.background="#DBEAFE"; e.currentTarget.style.color="#1D4ED8"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background="#F1F5F9"; e.currentTarget.style.color="#475569"; }}>
-                          ⬇
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div>
-                <div style={{ display:"grid", gridTemplateColumns:"2fr 0.8fr 0.8fr 40px",
-                  padding:"8px 12px", borderBottom:"1px solid #F1F5F9" }}>
-                  {["링크 이름","날짜","열기",""].map(h => (
-                    <span key={h} style={{ fontSize:12.5, fontWeight:700, color:"#94A3B8",
-                      fontFamily:F, letterSpacing:"0.05em" }}>{h}</span>
-                  ))}
-                </div>
-                {links.length===0 && <div style={{ padding:"16px 12px", color:"#94A3B8", fontSize:13, fontFamily:F }}>등록된 링크가 없습니다.</div>}
-                {links.map((lk,i) => {
-                  const isExp = expandedAttachId === lk.id;
-                  return (
-                    <div key={lk.id} style={{ borderBottom:i<links.length-1?"1px solid #F8FAFC":"none" }}>
-                      <div style={{ display:"grid", gridTemplateColumns:"2fr 0.8fr 0.8fr 40px",
-                        padding:"13px 12px", alignItems:"center" }}>
-                        <button onClick={() => setExpandedAttachId(isExp ? null : lk.id)}
-                          style={{ display:"flex", alignItems:"center", gap:8, fontSize:14.5,
-                            color:"#3B82F6", fontFamily:F, fontWeight:600, background:"none",
-                            border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
-                          <span style={{ fontSize:16 }}>🔗</span>
-                          <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                            textDecoration:lk.notes?"underline dotted":"none", textUnderlineOffset:3 }}>
-                            {lk.name}
-                          </span>
-                        </button>
-                        <span style={{ fontSize:14, color:"#475569", fontFamily:F }}>{fmtDate(lk.createdAt)}</span>
-                        <a href={lk.url} target="_blank" rel="noreferrer"
-                          style={{ fontSize:13, color:"#3B82F6", fontFamily:F, fontWeight:600, textDecoration:"none" }}>
-                          열기 ↗
-                        </a>
-                        <button onClick={() => { navigator.clipboard.writeText(lk.url); showToast("✓ 링크가 복사되었습니다."); }}
-                          title="링크 복사"
-                          style={{ display:"flex", alignItems:"center", justifyContent:"center",
-                            width:32, height:32, borderRadius:8, background:"#F1F5F9",
-                            color:"#475569", border:"none", cursor:"pointer", fontSize:15,
-                            transition:"background 0.12s" }}
-                          onMouseEnter={e => { e.currentTarget.style.background="#DDD6FE"; e.currentTarget.style.color="#5B21B6"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background="#F1F5F9"; e.currentTarget.style.color="#475569"; }}>
-                          📋
-                        </button>
-                      </div>
-                      {isExp && lk.notes && (
-                        <div style={{ margin:"0 12px 10px", padding:"10px 14px", borderRadius:8,
-                          background:"#F8FAFC", border:"1px solid #E2E8F0", fontSize:13,
-                          color:"#475569", fontFamily:F, lineHeight:1.6 }}>
-                          {lk.notes}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ display:"flex", gap:18, alignItems:"flex-start" }}>
+        {/* ── 왼쪽 메인: 7가지 세부협의사항만 (PM/에스크로와 같은 시작 Y) ── */}
+        <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:16 }}>
+
+          {/* 7가지 세부협의사항 탭 (확정된 모듈 데이터를 read-only inline 렌더) */}
+          <ContractModulesPanel modules={modules} />
+
         </div>
 
         {/* ── 오른쪽 사이드바 ── */}
         <div style={{ width:296, flexShrink:0, display:"flex", flexDirection:"column", gap:16 }}>
-
-          {/* 계약 세부 협의 항목 */}
-          <div style={{ border:"1.5px solid #F1F5F9", borderRadius:14, padding:"12px 14px", background:"white" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.5"
-                  strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 11 12 14 22 4"/>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
-                <h4 style={{ fontSize:14, fontWeight:800, color:"#1E293B", margin:0, fontFamily:F }}>
-                  계약 세부 협의 항목
-                </h4>
-              </div>
-              <span style={{ fontSize:12, fontWeight:700,
-                color:confirmedModules===7?"#16A34A":"#3B82F6",
-                background:confirmedModules===7?"#F0FDF4":"#EFF6FF",
-                border:`1px solid ${confirmedModules===7?"#BBF7D0":"#BFDBFE"}`,
-                borderRadius:99, padding:"2px 8px", fontFamily:F }}>
-                진행률 {Math.round((confirmedModules/7)*100)}%
-              </span>
-            </div>
-            {CONTRACT_KEYS.map((k) => {
-              const ss = statusStyle(modules[k]?.status);
-              return (
-                <div key={k}
-                  onClick={() => setContractModalKey(k)}
-                  onMouseEnter={e => { e.currentTarget.style.background="#F8FAFC"; e.currentTarget.style.cursor="pointer"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background="transparent"; }}
-                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                    padding:"5px 4px", borderRadius:6, marginBottom:2, border:"1px solid transparent",
-                    transition:"background 0.12s" }}>
-                  <span style={{ fontSize:14, color:"#374151", fontWeight:500, fontFamily:F }}>
-                    {CONTRACT_LABELS[k]}
-                  </span>
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:12, fontWeight:700, color:ss.text, background:ss.bg,
-                      borderRadius:99, padding:"2px 7px", fontFamily:F, flexShrink:0 }}>
-                      {modules[k]?.status||"미확정"}
-                    </span>
-                    <span style={{ fontSize:16, color:"#C4C9D4" }}>›</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
           {/* Project Meeting */}
           <div style={{ border:"1.5px solid #F1F5F9", borderRadius:14, padding:"12px 14px", background:"white" }}>
@@ -904,11 +553,373 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
               display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <span style={{ fontSize:14, fontWeight:700, color:"#374151", fontFamily:F }}>총 계약금</span>
               <span style={{ fontSize:15, fontWeight:800, color:"#1D4ED8", fontFamily:F }}>
-                {krw(totalAmount||project.budgetAmount)}
+                {krw(totalAmount || budgetAmountWon)}
               </span>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 마일스톤 진행도 + Phase stepper */}
+      <div style={{ border:"1.5px solid #E5E7EB", borderRadius:14, padding:"20px 22px", background:"white", marginTop:24 }}>
+        {currentMs && (
+          <>
+        <h3 style={{ fontSize:18, fontWeight:800, color:"#1E293B", margin:"0 0 6px", fontFamily:F }}>
+          {currentMs.seq}번째 마일스톤 ✅ {currentMs.title}
+        </h3>
+        {currentMs.description && (
+          <p style={{ fontSize:14.5, color:"#64748B", margin:"0 0 14px", fontFamily:F, lineHeight:1.6 }}>
+            {currentMs.description}
+          </p>
+        )}
+          </>
+        )}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:4, height:22, borderRadius:3, background:"#3B82F6" }} />
+            <span style={{ fontSize:16, fontWeight:800, color:"#1E293B", fontFamily:F }}>Progress Status</span>
+          </div>
+          <span style={{ fontSize:19.5, fontWeight:800, color:"#1E293B", fontFamily:F }}>{currentProgress}%</span>
+        </div>
+        <div style={{ width:"100%", height:8, borderRadius:99, background:"#F1F5F9", marginBottom:24, overflow:"hidden" }}>
+          <div style={{ width:`${currentProgress}%`, height:"100%", borderRadius:99,
+        background:"linear-gradient(90deg,#60a5fa,#3b82f6)" }} />
+        </div>
+        {/* Phase stepper */}
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", position:"relative" }}>
+          <div style={{ position:"absolute", top:17, left:"10%", right:"10%", height:2, background:"#E2E8F0", zIndex:0 }} />
+          {phases.map(ph => (
+        <div key={ph.num} style={{ display:"flex", flexDirection:"column", alignItems:"center", flex:1, position:"relative", zIndex:1 }}>
+          <div style={{ width:34, height:34, borderRadius:"50%",
+            background: ph.status==="done"?"#3B82F6":ph.status==="active"?"white":"#F1F5F9",
+            border: ph.status==="active"?"2.5px solid #3B82F6":ph.status==="done"?"none":"2px solid #E2E8F0",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:14.5, fontWeight:700,
+            color: ph.status==="done"?"white":ph.status==="active"?"#3B82F6":"#94A3B8",
+            boxShadow:(ph.status==="done"||ph.status==="active")?"0 2px 8px rgba(59,130,246,0.18)":"none" }}>
+            {ph.num}
+          </div>
+          <span style={{ fontSize:13.5, fontWeight:ph.status==="active"?700:500,
+            color:ph.status==="active"?"#3B82F6":ph.status==="done"?"#374151":"#94A3B8",
+            fontFamily:F, marginTop:6, textAlign:"center" }}>{ph.label}</span>
+          <span style={{ fontSize:12.5, color:"#94A3B8", fontFamily:F, marginTop:2 }}>{ph.date}</span>
+        </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 마일스톤 진행 */}
+      <div style={{ border:"1.5px solid #F1F5F9", borderRadius:14, padding:"20px 22px", background:"white", marginTop:24 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:4, height:22, borderRadius:3, background:"#3B82F6" }} />
+            <span style={{ fontSize:19, fontWeight:800, color:"#1E293B", fontFamily:F }}>마일스톤 진행</span>
+          </div>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {milestones.map((ms) => {
+        const esc = escrows.find(e => e.milestoneId===ms.id);
+        const eDisplayStatus = escrowDisplayStatus(esc, ms.status);
+        const es = ESCROW_STYLES[eDisplayStatus] || ESCROW_STYLES["결제 대기"];
+        const msLabel = MS_STATUS_LABEL[ms.status] || ms.status;
+        const msColor = MS_STATUS_COLOR[ms.status] || "#94A3B8";
+        return (
+          <div key={ms.id} style={{
+            border:"1.5px solid "+(eDisplayStatus==="정산 완료"?"#BBF7D0":eDisplayStatus==="납품 검수 중"?"#C4B5FD":"#F1F5F9"),
+            borderRadius:10, padding:"14px 18px", background:"white" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+              <span style={{ padding:"2px 8px", borderRadius:6, fontSize:12.5, fontWeight:700,
+            background:eDisplayStatus==="정산 완료"?"#F0FDF4":"#EFF6FF",
+            border:"1px solid "+(eDisplayStatus==="정산 완료"?"#BBF7D0":"#BFDBFE"),
+            color:eDisplayStatus==="정산 완료"?"#16A34A":"#3B82F6", fontFamily:F }}>
+            {eDisplayStatus==="정산 완료"?"완료":"진행 중"}
+              </span>
+              <span style={{ fontSize:15.5, fontWeight:700, color:"#1E293B", fontFamily:F }}>{ms.title}</span>
+            </div>
+            <div style={{ fontSize:13.5, color:"#64748B", fontFamily:F, display:"flex", gap:14, flexWrap:"wrap" }}>
+              <span>시작일: <strong style={{ color:"#374151" }}>{fmtDate(ms.startDate)}</strong></span>
+              <span>마감일: <strong style={{ color:"#374151" }}>{fmtDate(ms.endDate)}</strong></span>
+              {ms.submittedAt && <span style={{ color:"#7C3AED" }}>납품: {fmtDate(ms.submittedAt)}</span>}
+            </div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:12, flexShrink:0, marginLeft:8 }}>
+            <span style={{ fontSize:13.5, fontWeight:700, color:msColor, fontFamily:F, minWidth:70, textAlign:"right" }}>
+              {/* REVISION_REQUESTED + CLIENT 일 때는 버튼이 상태레이블을 대체하므로 텍스트 숨김 */}
+              {!(role==="CLIENT" && ms.status==="REVISION_REQUESTED") && msLabel}
+            </span>
+            {/* 역할별 액션 버튼 */}
+            {role==="CLIENT" && ms.status==="SUBMITTED" && (
+              <div style={{ display:"flex", gap:6 }}>
+            <button onClick={() => setReviseOpen(ms)} style={{ padding:"6px 12px", borderRadius:8,
+              border:"1px solid #FECACA", background:"white", color:"#DC2626",
+              fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:F }}>수정 요청</button>
+            <button onClick={() => handleApprove(ms)} style={{ padding:"6px 12px", borderRadius:8,
+              border:"none", background:PRIMARY_GRAD, color:"white",
+              fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:F }}>승인</button>
+              </div>
+            )}
+            {role==="CLIENT" && ms.status==="REVISION_REQUESTED" && (
+              <button
+            onClick={async () => {
+              try {
+                await milestonesApi.cancelRevision?.(projectId, ms.id);
+                setRevisionWithdrawnIds(prev => new Set([...prev, ms.id]));
+                showToast("✅ 수정 요청이 철회되었습니다."); reload();
+              } catch { showToast("수정 철회에 실패했습니다."); }
+            }}
+            style={{ padding:"6px 14px", borderRadius:8, border:"none",
+              background:"#FEF3C7", color:"#92400E", fontWeight:700, fontSize:12,
+              cursor:"pointer", fontFamily:F }}>
+            수정 철회
+              </button>
+            )}
+            {role==="CLIENT" && (!esc || esc?.status==="PENDING") && ms.status!=="SUBMITTED" && ms.status!=="APPROVED" && ms.status!=="COMPLETED" && (
+              <button onClick={() => setPayOpen(esc || { milestoneId: ms.id, amount: ms.amount, status: "PENDING" })}
+            onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg, #BBF7D0 0%, #86EFAC 100%)"; e.currentTarget.style.boxShadow="0 4px 12px rgba(134,239,172,0.5)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background="linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)"; e.currentTarget.style.boxShadow="0 1px 4px rgba(187,247,208,0.4)"; }}
+            style={{ padding:"6px 16px", borderRadius:8, border:"none",
+              background:"linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)",
+              color:"#166534", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:F,
+              boxShadow:"0 1px 4px rgba(187,247,208,0.4)", transition:"all 0.18s" }}>결제하기</button>
+            )}
+            {role==="PARTNER" && (ms.status==="IN_PROGRESS"||ms.status==="REVISION_REQUESTED") && (
+              <button onClick={() => setSubmitOpen(ms)} style={{ padding:"6px 14px", borderRadius:8,
+            border:"none", background:PRIMARY_GRAD, color:"white",
+            fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:F }}>
+            {ms.status==="REVISION_REQUESTED"?"재제출":"제출하기"}
+              </button>
+            )}
+            {(ms.status==="APPROVED"||ms.status==="COMPLETED") && (
+              <span style={{ padding:"6px 12px", borderRadius:8, border:"1px solid #BBF7D0",
+            background:"white", color:"#15803D", fontWeight:600, fontSize:12, fontFamily:F }}>
+            ✅ 완료
+              </span>
+            )}
+          </div>
+            </div>
+            {/* 완료 기준 */}
+            {ms.completionCriteria && (
+          <div style={{ marginBottom:10, padding:10, borderRadius:8, background:"#FFFBEB", border:"1px solid #FDE68A" }}>
+            <div style={{ fontSize:11, fontWeight:800, color:"#92400E", marginBottom:3 }}>✅ 완료 기준</div>
+            <div style={{ fontSize:12, color:"#713F12", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{ms.completionCriteria}</div>
+          </div>
+            )}
+            {/* 제출 메모 */}
+            {ms.submittedAt && ms.submissionNote && (
+          <div style={{ marginBottom:8, padding:10, borderRadius:8, background:"#F0F9FF", border:"1px solid #BFDBFE" }}>
+            <div style={{ fontSize:11, fontWeight:800, color:"#1E40AF", marginBottom:3 }}>
+              📤 제출 ({fmtDate(ms.submittedAt)})
+            </div>
+            <div style={{ fontSize:12, color:"#1E293B", lineHeight:1.6 }}>{ms.submissionNote}</div>
+            {ms.submissionFileUrl && (
+              <a href={ms.submissionFileUrl} target="_blank" rel="noreferrer"
+            style={{ display:"inline-block", marginTop:5, fontSize:12, color:"#2563EB",
+              fontWeight:600, textDecoration:"underline" }}>📎 제출 파일 열기</a>
+            )}
+          </div>
+            )}
+            {/* 수정 요청 사유 */}
+            {ms.revisionReason && (
+          <div style={{ marginBottom:8, padding:10, borderRadius:8, background:"#FEF2F2", border:"1px solid #FECACA" }}>
+            <div style={{ fontSize:11, fontWeight:800, color:"#991B1B", marginBottom:3 }}>⚠️ 수정 요청 사유</div>
+            <div style={{ fontSize:12, color:"#7F1D1D", lineHeight:1.6 }}>{ms.revisionReason}</div>
+          </div>
+            )}
+            {/* 수정 철회 시스템 카드 (철회 직후 로컴 상태) */}
+            {revisionWithdrawnIds.has(ms.id) && (
+          <div style={{ marginBottom:8, padding:10, borderRadius:8, background:"#F0FDF4", border:"1px solid #86EFAC" }}>
+            <div style={{ fontSize:11, fontWeight:800, color:"#15803D", marginBottom:3 }}>✅ 수정 철회됨</div>
+            <div style={{ fontSize:12, color:"#166534", lineHeight:1.6 }}>수정 요청이 철회되었습니다. 파트너에게 수정 철회가 안내됩니다.</div>
+          </div>
+            )}
+            {/* 에스크로 상태 바 */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"8px 12px", borderRadius:8, background:es.bg, border:"1px solid "+es.border }}>
+          <span style={{ fontSize:13.5, fontWeight:700, color:es.color, fontFamily:F,
+            display:"flex", alignItems:"center", gap:5 }}>
+            {es.icon} {eDisplayStatus}
+            <span style={{ fontWeight:500, color:"#64748B", marginLeft:6, fontSize:12.5 }}>
+              {krw(esc?.amount||ms.amount)}원
+            </span>
+          </span>
+          {eDisplayStatus==="결제 대기" && (
+            <span style={{ fontSize:12.5, color:"#94A3B8", fontFamily:F }}>🕐 클라이언트 결제 대기 중...</span>
+          )}
+          {eDisplayStatus==="에스크로 보관 중" && (
+            <span style={{ fontSize:12.5, fontWeight:600, color:"#1D4ED8", fontFamily:F }}>🔒 에스크로 확인됨 — 납품 후 정산</span>
+          )}
+          {eDisplayStatus==="납품 검수 중" && (
+            <span style={{ fontSize:12.5, fontWeight:600, color:"#5B21B6", fontFamily:F }}>🔍 납품 제출 완료 — 검수 중...</span>
+          )}
+          {eDisplayStatus==="정산 완료" && (
+            <span style={{ fontSize:12.5, fontWeight:700, color:"#15803D", fontFamily:F }}>
+              ✅ {krw(esc?.amount||ms.amount)}원 정산 완료
+            </span>
+          )}
+            </div>
+          </div>
+        );
+          })}
+        </div>
+      </div>
+
+      {/* Files / Links */}
+      <div style={{ border:"1.5px solid #F1F5F9", borderRadius:14, padding:"20px 22px", background:"white", marginTop:24 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <div style={{ display:"flex", gap:0 }}>
+        {[["files","Files"],["links","External Links"]].map(([key,label]) => (
+          <button key={key} onClick={() => setFileTab(key)}
+            style={{ padding:"4px 16px 10px", border:"none", background:"none",
+          fontSize:15.5, fontWeight:600, cursor:"pointer", fontFamily:F,
+          color:fileTab===key?"#3B82F6":"#94A3B8",
+          borderBottom:fileTab===key?"2.5px solid #3B82F6":"2.5px solid transparent" }}>
+            {label}
+          </button>
+        ))}
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+        <button onClick={() => setAddFileOpen(true)}
+          style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #BFDBFE",
+            background:"#EFF6FF", color:"#1E40AF", fontSize:12.5, fontWeight:700,
+            cursor:"pointer", fontFamily:F }}>+ 파일 업로드</button>
+        <button onClick={() => setAddLinkOpen(true)}
+          style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #DDD6FE",
+            background:"#F5F3FF", color:"#5B21B6", fontSize:12.5, fontWeight:700,
+            cursor:"pointer", fontFamily:F }}>+ 링크 추가</button>
+          </div>
+        </div>
+        {fileTab==="files" ? (
+          <div>
+        <div style={{ display:"grid", gridTemplateColumns:"1.8fr 1.2fr 0.7fr 0.6fr 52px",
+          padding:"8px 12px", borderBottom:"1px solid #F1F5F9" }}>
+          {["파일명","설명","날짜","크기","다운로드"].map(h => (
+            <span key={h} style={{ fontSize:12.5, fontWeight:700, color:"#94A3B8",
+          fontFamily:F, letterSpacing:"0.05em" }}>{h}</span>
+          ))}
+        </div>
+        {files.length===0 && <div style={{ padding:"16px 12px", color:"#94A3B8", fontSize:13, fontFamily:F }}>첨부 파일이 없습니다.</div>}
+        {files.map((f,i) => {
+          const isExp = expandedAttachId === f.id;
+          const fmtSize = f.sizeBytes
+            ? f.sizeBytes >= 1024*1024
+          ? (f.sizeBytes/1024/1024).toFixed(1)+" MB"
+          : (f.sizeBytes/1024).toFixed(0)+" KB"
+            : "-";
+          const preview = f.notes ? (f.notes.length > 20 ? f.notes.slice(0,20)+"…" : f.notes) : "-";
+          return (
+            <div key={f.id} style={{ borderBottom:i<files.length-1?"1px solid #F8FAFC":"none" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1.8fr 1.2fr 0.7fr 0.6fr 52px",
+            padding:"13px 12px", alignItems:"center" }}>
+            <button onClick={() => setExpandedAttachId(isExp ? null : f.id)}
+              style={{ display:"flex", alignItems:"center", gap:8, fontSize:14.5,
+            color:"#1E293B", fontFamily:F, background:"none", border:"none",
+            cursor:"pointer", padding:0, textAlign:"left" }}>
+              <span style={{ fontSize:17 }}>📄</span>
+              <span>{f.name}</span>
+            </button>
+            <span
+              title={f.notes || ""}
+              style={{ fontSize:13, color: f.notes ? "#475569" : "#CBD5E1",
+            fontFamily:F, cursor: f.notes ? "help" : "default",
+            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              {preview}
+            </span>
+            <span style={{ fontSize:13, color:"#475569", fontFamily:F }}>{fmtDate(f.createdAt)}</span>
+            <span style={{ fontSize:13, color:"#475569", fontFamily:F }}>{fmtSize}</span>
+            <button
+              title="다운로드"
+              onClick={() => {
+            const token = localStorage.getItem("accessToken");
+            fetch(`/api/projects/${f.projectId}/attachments/${f.id}/download`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            })
+              .then(async res => {
+                if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              showToast(err.message || "다운로드에 실패했습니다.");
+              return;
+                }
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const anchor = document.createElement("a");
+                anchor.href = blobUrl;
+                anchor.download = f.name;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                URL.revokeObjectURL(blobUrl);
+              })
+              .catch(() => showToast("다운로드에 실패했습니다."));
+              }}
+              style={{ display:"flex", alignItems:"center",
+            justifyContent:"center", width:48, height:40, borderRadius:8,
+            background:"#F1F5F9", color:"#475569", border:"none", cursor:"pointer",
+            fontSize:16, transition:"background 0.12s" }}
+              onMouseEnter={e => { e.currentTarget.style.background="#DBEAFE"; e.currentTarget.style.color="#1D4ED8"; }}
+              onMouseLeave={e => { e.currentTarget.style.background="#F1F5F9"; e.currentTarget.style.color="#475569"; }}>
+              ⬇
+            </button>
+          </div>
+            </div>
+          );
+        })}
+          </div>
+        ) : (
+          <div>
+        <div style={{ display:"grid", gridTemplateColumns:"2fr 0.8fr 0.8fr 40px",
+          padding:"8px 12px", borderBottom:"1px solid #F1F5F9" }}>
+          {["링크 이름","날짜","열기",""].map(h => (
+            <span key={h} style={{ fontSize:12.5, fontWeight:700, color:"#94A3B8",
+          fontFamily:F, letterSpacing:"0.05em" }}>{h}</span>
+          ))}
+        </div>
+        {links.length===0 && <div style={{ padding:"16px 12px", color:"#94A3B8", fontSize:13, fontFamily:F }}>등록된 링크가 없습니다.</div>}
+        {links.map((lk,i) => {
+          const isExp = expandedAttachId === lk.id;
+          return (
+            <div key={lk.id} style={{ borderBottom:i<links.length-1?"1px solid #F8FAFC":"none" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"2fr 0.8fr 0.8fr 40px",
+            padding:"13px 12px", alignItems:"center" }}>
+            <button onClick={() => setExpandedAttachId(isExp ? null : lk.id)}
+              style={{ display:"flex", alignItems:"center", gap:8, fontSize:14.5,
+            color:"#3B82F6", fontFamily:F, fontWeight:600, background:"none",
+            border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
+              <span style={{ fontSize:16 }}>🔗</span>
+              <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+            textDecoration:lk.notes?"underline dotted":"none", textUnderlineOffset:3 }}>
+            {lk.name}
+              </span>
+            </button>
+            <span style={{ fontSize:14, color:"#475569", fontFamily:F }}>{fmtDate(lk.createdAt)}</span>
+            <a href={lk.url} target="_blank" rel="noreferrer"
+              style={{ fontSize:13, color:"#3B82F6", fontFamily:F, fontWeight:600, textDecoration:"none" }}>
+              열기 ↗
+            </a>
+            <button onClick={() => { navigator.clipboard.writeText(lk.url); showToast("✓ 링크가 복사되었습니다."); }}
+              title="링크 복사"
+              style={{ display:"flex", alignItems:"center", justifyContent:"center",
+            width:32, height:32, borderRadius:8, background:"#F1F5F9",
+            color:"#475569", border:"none", cursor:"pointer", fontSize:15,
+            transition:"background 0.12s" }}
+              onMouseEnter={e => { e.currentTarget.style.background="#DDD6FE"; e.currentTarget.style.color="#5B21B6"; }}
+              onMouseLeave={e => { e.currentTarget.style.background="#F1F5F9"; e.currentTarget.style.color="#475569"; }}>
+              📋
+            </button>
+          </div>
+          {isExp && lk.notes && (
+            <div style={{ margin:"0 12px 10px", padding:"10px 14px", borderRadius:8,
+              background:"#F8FAFC", border:"1px solid #E2E8F0", fontSize:13,
+              color:"#475569", fontFamily:F, lineHeight:1.6 }}>
+              {lk.notes}
+            </div>
+          )}
+            </div>
+          );
+        })}
+          </div>
+        )}
       </div>
 
       {/* 에스크로 상세 팝업 */}
@@ -1001,6 +1012,76 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
           onToast={showToast} />
       )}
       {toast && <Toast message={toast} />}
+    </div>
+  );
+}
+
+/* ── 7가지 세부협의사항 탭 패널 ──────────────────────────
+   확정된 7개 모듈 데이터(read-only)를 탭 인터페이스로 보여줌.
+   modules: { scope, deliverable, schedule, payment, revision, completion, terms } - 각각 { status, data: JSON 문자열 }
+*/
+const CONTRACT_TABS = [
+  { key: "scope",       label: "1. 작업 범위",       Component: ScopeModal,         valueKey: "scope" },
+  { key: "deliverable", label: "2. 전달 결과물",     Component: DeliverablesModal,  valueKey: "deliverable" },
+  { key: "schedule",    label: "3. 일정",            Component: ScheduleModal,      valueKey: "schedule" },
+  { key: "payment",     label: "4. 결제",            Component: PaymentModal,       valueKey: "payment" },
+  { key: "revision",    label: "5. 수정",            Component: RevisionModuleModal, valueKey: "revision" },
+  { key: "completion",  label: "6. 완료",            Component: CompletionModal,    valueKey: "completion" },
+  { key: "terms",       label: "7. 특약",            Component: SpecialTermsModal,  valueKey: "terms" },
+];
+
+function ContractModulesPanel({ modules }) {
+  const [activeKey, setActiveKey] = useState("scope");
+  const parsed = useMemo(() => {
+    const out = {};
+    CONTRACT_TABS.forEach(({ key }) => {
+      const raw = modules?.[key]?.data;
+      if (!raw) { out[key] = null; return; }
+      if (typeof raw === "object") { out[key] = raw; return; }
+      try { out[key] = JSON.parse(raw); }
+      catch { out[key] = null; }
+    });
+    return out;
+  }, [modules]);
+
+  const ActiveTab = CONTRACT_TABS.find(t => t.key === activeKey) || CONTRACT_TABS[0];
+  const Component = ActiveTab.Component;
+  const value = parsed[ActiveTab.key];
+
+  return (
+    <div style={{ border:"1.5px solid #E5E7EB", borderRadius:14, padding:"20px 22px", background:"white" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+        <div style={{ width:4, height:22, borderRadius:3, background:"#3B82F6" }} />
+        <span style={{ fontSize:16, fontWeight:800, color:"#1E293B", fontFamily:F }}>7가지 세부 협의사항</span>
+      </div>
+      {/* 탭 바 — 7개 탭이 항상 한줄에 들어가도록 균등분배 (스크롤 X) */}
+      <div style={{ display:"flex", gap:0, borderBottom:"1.5px solid #E5E7EB", marginBottom:18 }}>
+        {CONTRACT_TABS.map(t => {
+          const active = t.key === activeKey;
+          return (
+            <button key={t.key} onClick={() => setActiveKey(t.key)}
+              style={{ flex:1, padding:"11px 8px", border:"none", background:"transparent",
+                fontSize:15, fontWeight:active?800:600, fontFamily:F,
+                color:active?"#1D4ED8":"#64748B", cursor:"pointer",
+                borderBottom:active?"2.5px solid #3B82F6":"2.5px solid transparent",
+                marginBottom:-1.5, whiteSpace:"nowrap", transition:"color 0.12s",
+                textAlign:"center" }}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* 활성 탭 콘텐츠 (read-only inline) */}
+      <div style={{ background:"#FAFBFC", border:"1px solid #F1F5F9", borderRadius:12, padding:"18px 20px" }}>
+        <Component
+          inline
+          readOnly
+          showHeaderStatusBadge={false}
+          onClose={() => {}}
+          value={value ?? null}
+          onChange={() => {}}
+        />
+      </div>
     </div>
   );
 }
