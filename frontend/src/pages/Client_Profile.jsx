@@ -8,6 +8,7 @@ import useStore from "../store/useStore";
 import { profileApi } from "../api/profile.api";
 import { projectsApi } from "../api/projects.api";
 import { applicationsApi } from "../api/applications.api";
+import { applyVerifiedSchool } from "../lib/schoolMatch";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
@@ -1534,8 +1535,21 @@ function EducationItem({ item, onEdit, onDelete }) {
 /* ── 학력 탭 ─────────────────────────────────────────────── */
 function EducationTab() {
   const { clientProfileDetail, updateClientProfileDetail } = useStore();
+  // 인증 이메일 retroactive 매칭 (한/영 학교명 alias)
+  const verifiedEmailObj = clientProfileDetail?.verifiedEmail;
+  const verifiedEmailStr = typeof verifiedEmailObj === "string"
+    ? verifiedEmailObj
+    : (verifiedEmailObj?.email || clientProfileDetail?.verifiedEmailValue || "");
+  const verifiedType = (typeof verifiedEmailObj === "object" ? verifiedEmailObj?.type : null)
+    || clientProfileDetail?.verifiedEmailType
+    || (verifiedEmailStr ? "school" : null);
+  const decorated = applyVerifiedSchool(
+    clientProfileDetail?.educations || [],
+    verifiedEmailStr,
+    verifiedType
+  );
   // hydration 시 id 누락/중복 방지
-  const initEducations = (clientProfileDetail?.educations || []).map((e, i) => (
+  const initEducations = decorated.map((e, i) => (
     e.id != null ? e : { ...e, id: `edu-${Date.now()}-${i}` }
   ));
   const [savedEntries, setSavedEntries] = useState(initEducations);

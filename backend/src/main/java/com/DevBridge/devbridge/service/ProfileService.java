@@ -219,6 +219,54 @@ public class ProfileService {
                 .build();
     }
 
+    /** [DEV ONLY] username 으로 직접 초기화. */
+    @Transactional
+    public void resetByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다. username=" + username));
+        resetMyProfile(user.getId());
+    }
+
+    /**
+     * 본인 프로필 데이터 일괄 초기화.
+     * 자식 컬렉션 (skills/careers/educations/awards/certifications) 모두 삭제 +
+     * UserProfileDetail 의 자기소개/슬로건/GitHub URL/short bio/strengthDesc/profileImageUrl 등도 초기 상태로.
+     * USERS 테이블 자체(username/email/password) 와 phone/birthDate/region 등 계정 기본값은 보존.
+     */
+    @Transactional
+    public void resetMyProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다. id=" + userId));
+
+        // 자식 컬렉션 비우기
+        try { userSkillDetailRepository.deleteByUser(user); } catch (Exception ignore) {}
+        try { userCareerRepository.deleteByUser(user); } catch (Exception ignore) {}
+        try { userEducationRepository.deleteByUser(user); } catch (Exception ignore) {}
+        try { userAwardRepository.deleteByUser(user); } catch (Exception ignore) {}
+        try { userCertificationRepository.deleteByUser(user); } catch (Exception ignore) {}
+
+        // UserProfileDetail 의 텍스트/링크 필드 초기화 (인증 이메일/검증 상태도 같이 비움)
+        userProfileDetailRepository.findByUser(user).ifPresent(detail -> {
+            detail.setBio(null);
+            detail.setShortBio(null);
+            detail.setStrengthDesc(null);
+            detail.setGithubUrl(null);
+            detail.setGithubHandle(null);
+            detail.setGithubRepoUrl(null);
+            detail.setVerifiedEmail(null);
+            detail.setVerifiedEmailType(null);
+            userProfileDetailRepository.save(detail);
+        });
+
+        // PartnerProfile 의 slogan/sloganSub 도 같이 초기화 (있는 경우).
+        // slogan 컬럼이 NOT NULL 제약일 수 있어 null 대신 빈 문자열 사용.
+        partnerProfileRepository.findByUser(user).ifPresent(pp -> {
+            try { pp.setSlogan(""); } catch (Exception ignore) {}
+            try { pp.setSloganSub(""); } catch (Exception ignore) {}
+            partnerProfileRepository.save(pp);
+        });
+    }
+
     /**
      * 전체 프로필 세부 정보 일괄 저장 (upsert + 자식 컬렉션은 deleteAll → insert).
      */

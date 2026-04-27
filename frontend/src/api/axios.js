@@ -37,6 +37,28 @@ api.interceptors.request.use(
 const SILENT_401_PATTERNS = [
   /\/bank\//,            // 계좌 인증 전체 (send-code, verify-code, account)
   /\/interests(\/|\?|$)/,
+  /\/applications(\/|\?|$)/,   // 대시보드 진입 시 병렬 호출 — 401 떠도 페이지 유지
+  /\/applications\/me/,
+  /\/projects\/me/,
+  /\/projects\/\d+\/dashboard/,
+  /\/projects\/\d+\/milestones/,
+  /\/projects\/\d+\/escrows/,
+  /\/projects\/\d+\/modules/,
+  /\/projects\/\d+\/attachments/,
+  /\/projects\/\d+\/meeting/,
+  /\/chat\/token/,
+  /\/profiles?\/me/,
+  /\/auth\/me/,
+];
+
+// 자동 리다이렉트 안 시킬 현재 페이지 경로 패턴.
+// 사용자가 의도적으로 들어온 페이지(대시보드 등)에선 401 만나도 강제로 /login 으로 보내지 않음.
+const NO_REDIRECT_PATHS = [
+  /^\/client_dashboard/,
+  /^\/partner_dashboard/,
+  /^\/project_register/,
+  /^\/portfolio/,
+  /^\/ai_chat/,
 ];
 
 // --- Response 인터셉터: 공통 에러 처리 ---
@@ -46,8 +68,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const reqUrl = error.config?.url || '';
       const silent = SILENT_401_PATTERNS.some(re => re.test(reqUrl));
-      if (silent) {
-        // 조용히 실패 — 호출부가 .catch 로 처리
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      const onProtectedPage = NO_REDIRECT_PATHS.some(re => re.test(currentPath));
+
+      if (silent || onProtectedPage) {
+        // 조용히 실패 — 호출부가 .catch 로 처리. 사용자 페이지는 그대로 유지.
         return Promise.reject(error);
       }
       if (import.meta.env.DEV) {

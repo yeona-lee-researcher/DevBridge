@@ -1546,14 +1546,16 @@ function Step4({ data, setData }) {
   };
 
   const koreanBudget = val => {
-    // val 은 만원 단위
-    const man = Number(String(val || "").replace(/[^0-9]/g, ""));
-    if (!man) return "";
-    const eok = Math.floor(man / 10000);
-    const remainMan = man % 10000;
+    // val 은 원 단위 (예: 5000000 → "500만원")
+    const won = Number(String(val || "").replace(/[^0-9]/g, ""));
+    if (!won) return "";
+    const eok = Math.floor(won / 100_000_000);
+    const man = Math.floor((won % 100_000_000) / 10_000);
+    const rest = won % 10_000;
     const parts = [];
     if (eok) parts.push(`${eok.toLocaleString("ko-KR")}억`);
-    if (remainMan) parts.push(`${remainMan.toLocaleString("ko-KR")}만`);
+    if (man) parts.push(`${man.toLocaleString("ko-KR")}만`);
+    if (rest) parts.push(`${rest.toLocaleString("ko-KR")}`);
     return parts.join(" ") + "원";
   };
 
@@ -1589,12 +1591,12 @@ function Step4({ data, setData }) {
               textAlign: "right", cursor: data.partnerFreeProject ? "not-allowed" : "text",
             }}
           />
-          <span style={{ padding: "0 20px", fontSize: 16, fontWeight: 600, color: "#374151", fontFamily: F, borderLeft: "1px solid #E5E7EB" }}>만원</span>
+          <span style={{ padding: "0 20px", fontSize: 16, fontWeight: 600, color: "#374151", fontFamily: F, borderLeft: "1px solid #E5E7EB" }}>원</span>
         </div>
         {data.partnerFreeProject ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span style={{ fontSize: 12, color: "#7C3AED", fontFamily: F }}>파트너 무료 프로젝트는 예산이 0만원으로 고정됩니다.</span>
+            <span style={{ fontSize: 12, color: "#7C3AED", fontFamily: F }}>파트너 무료 프로젝트는 예산이 0원으로 고정됩니다.</span>
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 8, flexWrap: "wrap" }}>

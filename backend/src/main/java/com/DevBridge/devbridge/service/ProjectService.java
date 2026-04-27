@@ -191,6 +191,16 @@ public class ProjectService {
             org.slf4j.LoggerFactory.getLogger(ProjectService.class)
                     .warn("[ProjectService] contract module seed failed for project {}: {}", saved.getId(), e.getMessage());
         }
+        // AI chat 등에서 contractTerms 가 함께 들어왔으면 해당 모듈 data 를 AI 내용으로 덮어쓴다.
+        // (기본 시드값 → AI 협의 내용 우선)
+        try {
+            if (req.getContractTerms() != null && !req.getContractTerms().isEmpty()) {
+                contractModuleSeeder.applyContractTerms(saved, req.getContractTerms());
+            }
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(ProjectService.class)
+                    .warn("[ProjectService] contractTerms 적용 실패 projectId={}: {}", saved.getId(), e.getMessage());
+        }
 
         List<String> savedTags = projectTagRepository.findByProject(saved).stream()
                 .map(ProjectTag::getTag)
@@ -498,8 +508,12 @@ public class ProjectService {
     }
 
     private static String formatPrice(Project p) {
+        // budget* 는 원 단위 저장 → 표시는 만원으로 압축.
         if (p.getBudgetMin() != null && p.getBudgetMax() != null) {
-            return String.format("%,d~%,d만원", p.getBudgetMin(), p.getBudgetMax());
+            return String.format("%,d~%,d만원", p.getBudgetMin() / 10000, p.getBudgetMax() / 10000);
+        }
+        if (p.getBudgetAmount() != null && p.getBudgetAmount() > 0) {
+            return String.format("%,d만원", p.getBudgetAmount() / 10000);
         }
         if (p.getMonthlyRate() != null) {
             return String.format("%,d만원/월", p.getMonthlyRate() / 10000);

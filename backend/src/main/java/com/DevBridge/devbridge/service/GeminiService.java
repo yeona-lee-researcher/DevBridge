@@ -83,11 +83,13 @@ public class GeminiService {
             ));
         }
 
-        // chat 응답은 짧게 — 출력 토큰 제한이 응답 시간을 가장 크게 좌우.
-        // 한 turn 당 보통 200-800 토큰이면 충분하므로 2048로 캡.
+        // chat 응답 토큰 한도.
+        // 일괄 입력 모드에선 등록폼 JSON + 7가지 협의 마크다운 + contractTerms JSON 모두 한 응답에 출력해야 해서
+        // 충분히 32768 까지 허용. (8192 일 때도 contractTerms verbose 하게 쓰면 잘리는 사례 발견)
+        // gemini-2.5-flash 는 최대 65536 까지 지원하므로 안전한 범위.
         body.put("generationConfig", Map.of(
                 "temperature", 0.8,
-                "maxOutputTokens", 2048
+                "maxOutputTokens", 32768
         ));
 
         Map<String, Object> response = generateContent(body);

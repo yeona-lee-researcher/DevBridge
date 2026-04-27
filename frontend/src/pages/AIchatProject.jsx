@@ -9,7 +9,28 @@ import useStore from "../store/useStore";
 const SYSTEM_PROMPT_PROJECT = `너는 DevBridge 플랫폼의 AI 행운이라는 캐릭터야. 클라이언트가 프로젝트 등록을 쉽게 할 수 있도록 친근한 한국어로 인터뷰를 진행해. 핵심은 **굵게**, 이모지도 적절히 써.
 
 **중요한 규칙**:
-1. 한 번에 **딱 한 가지 질문만** 해. 여러 개 동시에 묻지 마.
+
+0. **🚀 일괄 입력 모드 (최우선 분기)** — 다음 중 하나라도 해당되면 8단계 인터뷰를 **건너뛰고** **반드시 한 번의 응답에 (a)+(b)+(c)+(d)+(e) 모두 출력**해. 절대로 (a) 인사만 보내고 끊지 마. 끊으면 시스템이 망가져.
+   - 사용자 메시지 **맨 앞에 ⭐ 또는 :star: 가 붙어 있다** (명시적 일괄 모드 신호)
+   - 또는 사용자 메시지가 길고 (150자 이상) 다음 판정 항목 중 **3개 이상** 포함:
+     · 서비스 컨셉/플랫폼/신규·리뉴얼
+     · 핵심 기능 3개 이상
+     · 예산 (또는 "추천")
+     · 일정/시작일/기간
+     · 미팅 방식 또는 사용 기술
+     · 모집 요건 또는 협력 인원
+
+   **반드시 이 순서로 한 응답에 모두 출력 (절대 도중에 끊지 마):**
+   (a) 1줄 인사 ("말씀해주신 내용 정리해서 기획안 + 7가지 세부 협의 사항까지 한 번에 만들어드릴게요 ✨")
+   (b) 빈 줄 후 **\`\`\`json ... \`\`\`** 코드블록 — 4번 형식의 **등록폼 JSON** (top-level: title, scope, fields, projectType2, readyStatus, detailContent, techTags, budgetAmount, collab, durationMonths, startDateType, startDate, deadline, govSupport, meetingType, meetingFreq, meetingTools, reqTags, questions, visibility 등). **이 블록부터 출력해야 해** — contractTerms 부터 출력하면 토큰 한도 잘림.
+   (c) 빈 줄 후 "## 1. 작업 범위" ~ "## 7. 추가 특약" 7개 마크다운 섹션. 각 섹션은 **2~3줄 내외로 간결하게**. 길게 쓰지 마.
+   (d) 빈 줄 후 **\`\`\`json ... \`\`\`** 코드블록 — contractTerms JSON. **각 배열 항목은 짧게** (label/title은 한 줄, desc/items는 1~2줄). 불필요한 verbose 풀어서 쓰지 마.
+   (e) 마지막 줄: "**지금까지 정리한 프로젝트 내용 + 7가지 세부 협의 항목까지 한 번에 만들었어요 ✨ 맘에 드시면 아래 '등록 폼에 반영하기' 버튼을 눌러주세요!**"
+
+   ⚠️ **(b) 등록폼 JSON 을 절대 빼먹지 마**. (a) 인사 직후 (b) 부터 출력해야 한다. (c)(d)(e) 도 빠짐없이.
+   ⇒ 부족한 정보는 합리적 기본값으로 채워라. 추가 질문 X. 5번/6번 멘트 (마무리 인사 + "추가로 만들어드릴까요?") 는 출력하지 마.
+
+1. (위 일괄 모드가 아닐 때) 한 번에 **딱 한 가지 질문만** 해. 여러 개 동시에 묻지 마.
 2. 아래 8가지 항목을 1번부터 순서대로 물어봐. 각 질문은 2~4줄로 충분히 설명/예시를 주어 구체적으로:
    ① **서비스 컨셉**: 어떤 서비스/제품을 만들고 싶으신가요? (해결하려는 문제, 주요 컨셉, 플랫폼이 웹인지 앱인지, 신규 구축인지 / 기존 운영 서비스의 유지보수·리뉴얼인지)
    ② **현재 준비 상태**: 지금 가지고 계신 자료가 있나요? (아이디어만 있음 / 기획서·문서 있음 / 디자인 시안 또는 와이어프레임 있음 / 기존 코드·운영 중)
@@ -32,10 +53,11 @@ const SYSTEM_PROMPT_PROJECT = `너는 DevBridge 플랫폼의 AI 행운이라는 
   "readyStatus": ["doc"],
   "detailContent": "## 서비스 개요\\n...\\n\\n## 주요 기능\\n- ...\\n\\n## 대상 사용자\\n...\\n\\n## 외부 연동\\n...\\n\\n## 설계 고려사항\\n...",
   "techTags": ["React", "Node.js", "PostgreSQL"],
-  "budgetAmount": "500",
+  "budgetAmount": "5000000",
   "collab": { "planning": 1, "design": 1, "publishing": 0, "dev": 2 },
   "durationMonths": "3",
-  "startDateType": "asap",
+  "startDateType": "specific",
+  "startDate": "2026-05-01",
   "negotiable": true,
   "deadline": "2026-05-15",
   "govSupport": "none",
@@ -56,11 +78,14 @@ const SYSTEM_PROMPT_PROJECT = `너는 DevBridge 플랫폼의 AI 행운이라는 
 - \`readyStatus\`: ["idea"](아이디어만), ["doc"](기획서·문서 있음), ["design"](상세 설계·디자인 완료), ["code"](기존 코드·운영 중) 중 적절한 것들의 배열. 여러 개 가능.
 - \`detailContent\`: 마크다운으로 구조화된 상세 내용. ## 서비스 개요 / ## 주요 기능 / ## 대상 사용자 / ## 외부 연동 / ## 설계 고려사항 섹션 포함. 최소 8줄 이상 충실하게.
 - \`techTags\`: 3~7개. 사용자 선호 + 네 추천 합침.
-- \`budgetAmount\`: 만 원 단위 숫자 문자열. 미정이면 서비스 규모 기반으로 합리적으로 추정. 따옴표 안에 "500".
+- \`budgetAmount\`: **원 단위** 숫자 문자열 (천 단위 콤마 X). 미정이면 서비스 규모 기반으로 합리적으로 추정. 예: 500만원 → "5000000".
 - \`collab\`: 협력 인원 구성. 키는 **반드시** "planning", "design", "publishing", "dev" 4개만 쓰고 각 값은 정수(명 수). 예산·기능 범위·일정을 종합해 네가 제안한 수를 그대로 넣어. 사용자가 조정 요청했으면 조정된 값으로.
 - \`durationMonths\`: 개월 수 숫자 문자열.
 - \`negotiable\`: 예산·일정 협의 가능 여부(true/false). 사용자가 명시적으로 고정이라 하지 않으면 기본 true.
-- \`startDateType\`: "asap"(즉시) / "next_month"(다음달) / "negotiable"(협의) 중 하나.
+- \`startDateType\`: **"specific"** (특정 시작일이 정해져 있음) / **"negotiable"** (협의 가능) 중 하나.
+  - 사용자가 "2026-04-16부터", "5월 1일에 시작", "다음 주 월요일" 등 **구체적인 날짜를 언급**했으면 무조건 \`"specific"\` 으로 설정하고 \`startDate\` 필드에 YYYY-MM-DD 형식으로 정확히 박아.
+  - 사용자가 "협의", "상의 후", "ASAP" 같이 모호하게 말했으면 \`"negotiable"\` 로 두고 \`startDate\` 는 빈 문자열.
+- \`startDate\`: \`startDateType\` 이 \`"specific"\` 일 때 필수. YYYY-MM-DD 형식 (예: "2026-04-16"). \`"negotiable"\` 일 땐 "".
 - \`deadline\`: 모집 마감일을 YYYY-MM-DD 형식 문자열로. 사용자가 "2주 후"라고 하면 오늘 기준 2주 후 날짜로 계산해서 넣어. 미정이면 "".
 - \`govSupport\`: "none"(해당 없음) / "yes"(해당 있음) 중 하나. 기본 "none".
 - \`meetingType\`: **반드시 이 4개 중 하나**: "온라인 (화상)", "오프라인 (대면)", "둘 다 가능", "미팅 불필요".
@@ -70,12 +95,11 @@ const SYSTEM_PROMPT_PROJECT = `너는 DevBridge 플랫폼의 AI 행운이라는 
 - \`questions\`: 사전 검증 질문 1~3개의 자연어 문자열 배열. 사용자가 "AI가 알아서 만들어줘"라고 하면 프로젝트 성격에 맞는 질문 3개를 네가 직접 만들어줘 (예: "비슷한 프로젝트 경험을 알려주세요.", "예상되는 어려움과 해결 방안은?", "선호하는 협업 방식은?").
 - \`visibility\`: 기본 "파트너에게만 공개".
 
-5. JSON을 출력한 뒤에는 한 줄로 "**원하시는 방향에 맞춰서 프로젝트 기획안을 작성했어요! ✨ 아래 '등록 폼에 반영하기' 버튼을 누르시면 자동으로 입력돼요.**" 라고 마무리 인사를 해.
+5. JSON 코드블록 출력 직후, **같은 메시지 안에서** 빈 줄로 한 번 끊고 → 7가지 세부 협의 항목 마크다운 섹션 + contractTerms JSON 블록까지 **연달아 출력**해 (두 말풍선처럼 보이지만 한 응답에 같이 나오게). 절대로 "세부 협의 항목도 만들어드릴까요?" 같은 중간 확인 질문 하지 마. 8번째 답변을 받았으면 바로 둘 다 만들어.
 
-6. **추가 단계 — 세부 협의 사항 제안**: JSON 출력과 마무리 인사 직후, 같은 메시지 마지막에 한 줄 띄우고 다음 멘트를 정확히 추가해:
-"💡 추가로, 지금까지 말씀해주신 내용을 바탕으로 **DevBridge의 7가지 세부 협의 항목**(작업 범위 / 최종 전달 결과물 / 마감 일정·마일스톤 / 총 금액·정산 방식 / 수정 가능 범위 / 완료 기준 / 추가 특약)도 미리 작성해드릴까요? **'네'**라고 답해주시면 7개를 한 번에 보여드릴게요."
+6. (사용 안 함 — 5번에서 통합) — 사용자가 "네"라고 다시 응답하길 기다리지 말고, 8번째 답변 직후 한 메시지에 다 출력해.
 
-7. **다음 사용자 메시지가 "네"/"yes"/"좋아"/"부탁해" 등 긍정이면**, 7개 협의 항목 각각을 아래 형식의 마크다운 섹션으로 한 메시지에 모두 작성하고, 마지막에 contractTerms JSON을 추가해:
+7. **7가지 협의 항목 형식** (5번에서 함께 출력):
 
 ## 1. 작업 범위
 (2~4줄로 구체적으로 정의)
@@ -168,11 +192,14 @@ const SYSTEM_PROMPT_PROJECT = `너는 DevBridge 플랫폼의 AI 행운이라는 
 **중요한 규칙**:
 - 위 JSON은 반드시 위 구조(키 이름과 배열/객체 형태)를 그대로 지킬 것. 값만 사용자 프로젝트 상황에 맞게 채워라.
 - \`payment.total\` 은 사용자가 말한 예산 금액을 콤마 포함 한국 숫자 표기로. 예산 미언급이면 "10,000,000".
+- \`payment.total\` 은 위에서 정한 \`budgetAmount\` 와 **반드시 일치**해야 해 (원 단위, 콤마 포함 가능). 예: budgetAmount="5000000" → payment.total="5,000,000". 절대 임의로 바꾸지 마.
 - \`payment.stages\` 의 amount 는 total 기준 30/40/30 으로 분할.
 - \`schedule.phases\` 는 사용자가 말한 기간/시작일에 맞춰 4단계로 분할.
-- \`schedule.startDate\` 는 사용자가 말한 시작일이 있으면 그 날짜를, 없으면 "협의".
+- \`schedule.startDate\` 는 사용자가 말한 시작일이 있으면 **YYYY-MM-DD 형식 그대로** 박아 (예: "2026-04-16"). 없으면 "협의".
+- \`completion.categories\` 의 개수는 **반드시 \`schedule.phases\` 의 개수와 동일**하게 맞춰. 각 카테고리는 해당 phase 의 산출물/검수 기준을 구체적으로 적어. (마일스톤마다 완료기준이 1:1 매칭되어 표시됨)
 
-그리고 마지막 줄에 "**이대로 프로젝트 기입에 같이 반영해드릴까요? 아래 초록색 버튼을 누르시면 7가지 협의 사항까지 함께 자동 입력돼요! ✨**" 라고 마무리해.`;
+그리고 두 번째 코드블록(contractTerms JSON) 출력 직후, 마지막 줄에 정확히 다음과 같이 마무리해:
+"**지금까지 정리한 프로젝트 내용 + 7가지 세부 협의 항목까지 한 번에 만들었어요 ✨ 맘에 드시면 아래 '등록 폼에 반영하기' 버튼을 눌러주세요!**"`;
 
 const SYSTEM_PROMPT_CONTRACT = `너는 DevBridge 플랫폼의 계약 작성 도우미 AI 행운이야. DevBridge의 7가지 협의사항(작업 범위, 최종 전달 결과물, 마감 일정/마일스톤, 총 금액/정산 방식, 수정 가능 범위, 완료 기준, 추가 특약)을 사용자와 대화하며 정리해줘. 친근한 한국어로 답하고 핵심은 **굵게** 표시해.`;
 
@@ -261,9 +288,11 @@ const STEP_EXAMPLE_CHIPS = [
   ],
 ];
 
-const BOT_INTRO = `안녕하세요! 저는 프로젝트 등록을 도와드리는 AI 행운이예요 🐣
+const BOT_INTRO = `**8가지 질문**을 차근차근 드릴 테니 편하게 답해주세요.
 
-**8가지 질문**을 차근차근 드릴 테니 편하게 답해주세요.
+[[BLUE]]💡 한 번에 모든 내용을 다 얘기하고 싶으시면, 제 말풍선의 **⭐ 한 번에 모두 입력하기** 버튼을 누르고, 한 말풍선에 아래 항목들을 최대한 넣어 주세요.
+ex) "AI 멘탈 케어 웹서비스. React + Node.js + MongoDB. 일기/감정 분석/맞춤 루틴 추천. 20~40대 직장인. 예산 1500만원, 2026-05-01 시작 4개월. 온라인 미팅 주1회, Slack 사용. 포트폴리오 필수, 경력 3년 이상."[[/BLUE]]
+
 끝나면 **제목·추천 분야·준비 상태·상세 설명·기술 스택·예산·협력 인원 구성·예상 일정·미팅 방식·모집 마감·지원자 요건·사전 검증 질문**까지 전부 채워드릴게요! ✨
 마지막에는 필요하시면 **7가지 세부 협의 사항**까지 미리 제안해드리고요!
 
@@ -356,6 +385,7 @@ export default function AIchatProject() {
         history,
         contractMode ? SYSTEM_PROMPT_CONTRACT : SYSTEM_PROMPT_PROJECT
       );
+      console.log("[AIchatProject] AI 응답 전체 (길이:", reply?.length, "):\n", reply?.slice(0, 500));
 
       // AI 응답에서 JSON 코드블록 추출 (자동 입력용). 여러 번 호출 시 기존 데이터에 도도록 머지.
       // contractTerms 7가지 세부 협약 JSON 도 같이 처리.
@@ -364,19 +394,73 @@ export default function AIchatProject() {
         // contractTerms 가 들어오면 ProjectRegister 의 derived 섹션(예산/일정)도 일관되게
         // 채워지도록 top-level 필드(budgetAmount/startDate/durationMonths)에 sync.
         const syncTopLevelFromContractTerms = (parsed) => {
-          if (!parsed?.contractTerms) return parsed;
-          const ct = parsed.contractTerms;
-          const out = { ...parsed };
-          // payment.total ("5,000,000" or "₩5,000,000") → budgetAmount (만 원 단위 문자열)
-          if (!out.budgetAmount && ct.payment?.total) {
-            const totalNum = Number(String(ct.payment.total).replace(/[^0-9]/g, ""));
-            if (totalNum > 0) out.budgetAmount = String(Math.round(totalNum / 10000));
+          const out = { ...(parsed || {}) };
+          const ct = out.contractTerms || null;
+
+          // ── 1) startDate 포맷 정규화 ("2026.04.16" / "2026/04/16" → "2026-04-16")
+          if (out.startDate && typeof out.startDate === "string") {
+            const norm = out.startDate.replace(/[./]/g, "-").trim();
+            const m = norm.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+            if (m) {
+              out.startDate = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+            }
           }
-          // schedule.startDate ("2026.05.01" or "2026-05-01" or "협의") → startDate (YYYY-MM-DD)
+
+          // ── 2) startDateType 정규화 — ProjectRegister 가 인식하는 값은 "specific" / "negotiable" 둘만
+          //     "asap" / "next_month" / "fixed" 등 다른 값은 startDate 유무로 매핑.
+          const t = String(out.startDateType || "").toLowerCase();
+          if (out.startDate && /^\d{4}-\d{2}-\d{2}$/.test(out.startDate)) {
+            // 날짜가 박혀 있으면 무조건 specific
+            out.startDateType = "specific";
+          } else if (t === "asap" || t === "next_month" || t === "fixed") {
+            // 정규화: 날짜 없으면 negotiable 로 폴백
+            out.startDateType = "negotiable";
+          } else if (!t) {
+            out.startDateType = "negotiable";
+          }
+
+          if (!ct) return out;
+
+          // ── 2) 예산 동기화 — budgetAmount 와 payment.total 이 둘 다 있으면 budgetAmount 우선,
+          //     없으면 payment.total → budgetAmount, 그리고 양쪽이 어긋나면 한쪽으로 통일.
+          const parseWon = (s) => Number(String(s || "").replace(/[^0-9]/g, "")) || 0;
+          let baTop = parseWon(out.budgetAmount);
+          let baPay = parseWon(ct.payment?.total);
+          // 휴리스틱: AI 가 옛날 프롬프트로 만원 단위 ("500") 를 뱉었을 때 ×10000 보정.
+          // 100,000원 미만은 만원-혼동 추정. (실제 외주 프로젝트 < 10만원 가능성 거의 없음)
+          if (baTop > 0 && baTop < 100_000) baTop *= 10_000;
+          if (baPay > 0 && baPay < 100_000) baPay *= 10_000;
+          const finalWon = baTop > 0 ? baTop : baPay;
+          if (finalWon > 0) {
+            out.budgetAmount = String(finalWon);
+            // payment 모듈 쪽도 동일 값으로 보정 (포매팅 + stages 비율 재계산)
+            const fmt = (n) => Number(n).toLocaleString("ko-KR");
+            const initial = Math.round(finalWon * 0.30);
+            const middle  = Math.round(finalWon * 0.40);
+            const balance = finalWon - initial - middle;
+            const newPayment = {
+              ...(ct.payment || {}),
+              total: fmt(finalWon),
+              vatNote: ct.payment?.vatNote ?? "VAT 별도",
+              stages: [
+                { label: "계약금 (30%)", tag: "Initial", amount: "₩" + fmt(initial), desc: "계약 후 3일 이내" },
+                { label: "중도금 (40%)", tag: null,      amount: "₩" + fmt(middle),  desc: "1차 산출물 검수 완료 후" },
+                { label: "잔금 (30%)",   tag: null,      amount: "₩" + fmt(balance), desc: "최종 납품 및 검수 완료 후" },
+              ],
+              bankName: ct.payment?.bankName ?? "추후 협의 (계약 시 확정)",
+              bankNote: ct.payment?.bankNote ?? "계좌 이체 · 일반 과세",
+              extraPolicies: ct.payment?.extraPolicies ?? ["범위 외 요청은 Man-month 실비 정산", "긴급 수정은 일괄 20% 할증"],
+            };
+            out.contractTerms = { ...ct, payment: newPayment };
+          }
+
+          // ── 3) schedule.startDate ("2026.05.01" or "2026-05-01" or "협의") → top-level startDate (YYYY-MM-DD)
           if (!out.startDate && ct.schedule?.startDate && /\d{4}/.test(ct.schedule.startDate)) {
             out.startDate = String(ct.schedule.startDate).replace(/\./g, "-").slice(0, 10);
+            if (/\d{4}-\d{2}-\d{2}/.test(out.startDate)) out.startDateType = "specific";
           }
-          // schedule.phases[].weeks → durationMonths 보강
+
+          // ── 4) schedule.phases[].weeks → durationMonths 보강
           if (!out.durationMonths && Array.isArray(ct.schedule?.phases) && ct.schedule.phases.length) {
             const totalWeeks = ct.schedule.phases.reduce((sum, p) => {
               const w = Number(String(p?.weeks || "").replace(/[^0-9]/g, "")) || 0;
@@ -387,42 +471,122 @@ export default function AIchatProject() {
           return out;
         };
 
-        // 1) 닫힌 ```json ... ``` 블록 모두 추출 (전역 /g) — 한 응답에 여러 블록 있을 수 있음
+        // ── JSON 추출 (다양한 포맷 지원) ──
+        // 1) 닫힌 ```json ... ``` 블록 모두 추출 (전역 /g)
+        // 2) 닫는 fence 누락 (truncated)
+        // 3) fence 자체가 없고 "json\n{...}" 또는 "{ ... 'contractTerms': ... }" 형태
+        const tryParseAndApply = (snippet) => {
+          try {
+            const parsed = syncTopLevelFromContractTerms(JSON.parse(snippet));
+            console.log("[AIchatProject] JSON 파싱 성공:", Object.keys(parsed));
+            setExtractedData((prev) => ({ ...(prev || {}), ...parsed }));
+            return true;
+          } catch (e) {
+            console.warn("[AIchatProject] JSON 파싱 실패:", e.message, "\nsnippet:", snippet?.slice(0, 200));
+            return false;
+          }
+        };
+        // 한 위치에서 균형 잡힌 { ... } 한 덩어리 추출
+        const extractBalancedJsonAt = (text, fromIdx) => {
+          const start = text.indexOf("{", fromIdx);
+          if (start === -1) return null;
+          let depth = 0; let inStr = false; let esc = false;
+          for (let i = start; i < text.length; i++) {
+            const c = text[i];
+            if (inStr) {
+              if (esc) esc = false;
+              else if (c === "\\") esc = true;
+              else if (c === '"') inStr = false;
+            } else {
+              if (c === '"') inStr = true;
+              else if (c === '{') depth++;
+              else if (c === '}') { depth--; if (depth === 0) return { start, end: i + 1 }; }
+            }
+          }
+          return null;
+        };
+
+        const removeRanges = []; // 본문에서 잘라낼 [start, end] 영역 모음
         const closedRegex = /```json\s*([\s\S]*?)\s*```/g;
         let closedAny = false;
         let m;
         while ((m = closedRegex.exec(reply)) !== null) {
           closedAny = true;
-          try {
-            const parsed = syncTopLevelFromContractTerms(JSON.parse(m[1]));
-            setExtractedData((prev) => ({ ...(prev || {}), ...parsed }));
-          } catch (e) {
-            console.warn("[AIchatProject] JSON 파싱 실패 (블록은 말풍선에서는 숨김):", e?.message);
+          tryParseAndApply(m[1]);
+          removeRanges.push([m.index, m.index + m[0].length]);
+        }
+        // truncated ```json 시작은 있는데 닫는 fence 없는 경우
+        if (!closedAny && reply.includes("```json")) {
+          const startIdx = reply.indexOf("```json");
+          const range = extractBalancedJsonAt(reply, startIdx + 7);
+          if (range) {
+            tryParseAndApply(reply.slice(range.start, range.end));
+            removeRanges.push([startIdx, reply.length]);
+          } else {
+            removeRanges.push([startIdx, reply.length]);
           }
         }
-        if (closedAny) {
-          cleanReply = reply.replace(/```json[\s\S]*?```/g, "").trim();
-        } else if (reply.includes("```json")) {
-          // 2) ```json 으로 시작했지만 닫는 fence 가 없는 경우 — truncated 응답.
-          const startIdx = reply.indexOf("```json");
-          const tail = reply.slice(startIdx + "```json".length).trim();
-          try {
-            const firstBrace = tail.indexOf("{");
-            if (firstBrace !== -1) {
-              let depth = 0; let endIdx = -1;
-              for (let i = firstBrace; i < tail.length; i++) {
-                if (tail[i] === "{") depth++;
-                else if (tail[i] === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
-              }
-              if (endIdx !== -1) {
-                const parsed = syncTopLevelFromContractTerms(JSON.parse(tail.slice(firstBrace, endIdx + 1)));
-                setExtractedData((prev) => ({ ...(prev || {}), ...parsed }));
+        // fence 없이 "json\n{...}" 형태 (모델이 fence 누락한 경우)
+        // 또는 본문 어딘가의 contractTerms 포함 raw JSON 객체.
+        if (removeRanges.length === 0) {
+          // pattern A: 줄 시작에 "json\n" 또는 "JSON\n" 후 객체
+          const jsonHeaderRe = /(^|\n)\s*json\s*\n/i;
+          const jh = reply.match(jsonHeaderRe);
+          if (jh) {
+            const after = (jh.index || 0) + jh[0].length;
+            const range = extractBalancedJsonAt(reply, after);
+            if (range && tryParseAndApply(reply.slice(range.start, range.end))) {
+              removeRanges.push([(jh.index || 0), range.end]);
+            }
+          }
+        }
+        if (removeRanges.length === 0) {
+          // pattern B: 그냥 "{ ... \"contractTerms\" ... }" 가 본문에 있으면 그 덩어리만 추출
+          const ctIdx = reply.search(/"contractTerms"\s*:/);
+          if (ctIdx !== -1) {
+            // contractTerms 키 앞쪽의 가장 가까운 { 부터 균형 추출
+            let braceStart = reply.lastIndexOf("{", ctIdx);
+            if (braceStart !== -1) {
+              const range = extractBalancedJsonAt(reply, braceStart);
+              if (range && tryParseAndApply(reply.slice(range.start, range.end))) {
+                removeRanges.push([range.start, range.end]);
               }
             }
-          } catch (e) {
-            console.warn("[AIchatProject] truncated JSON 파싱 실패 (말풍선에서는 숨김):", e?.message);
           }
-          cleanReply = reply.slice(0, startIdx).trim();
+        }
+        // 추가로 top-level 등록폼 JSON도 별개 객체로 본문에 있을 수 있음 (title/scope/budgetAmount 키)
+        if (removeRanges.length > 0) {
+          const titleIdx = reply.search(/"title"\s*:/);
+          if (titleIdx !== -1) {
+            // 이미 제거 범위에 포함되지 않은 경우만
+            const inRemoved = removeRanges.some(([s, e]) => titleIdx >= s && titleIdx <= e);
+            if (!inRemoved) {
+              let braceStart = reply.lastIndexOf("{", titleIdx);
+              if (braceStart !== -1) {
+                const range = extractBalancedJsonAt(reply, braceStart);
+                if (range && tryParseAndApply(reply.slice(range.start, range.end))) {
+                  removeRanges.push([range.start, range.end]);
+                }
+              }
+            }
+          }
+        }
+
+        if (removeRanges.length > 0) {
+          // 영역 병합·정렬 후 본문에서 제거
+          removeRanges.sort((a, b) => a[0] - b[0]);
+          const merged = [];
+          for (const [s, e] of removeRanges) {
+            if (merged.length && s <= merged[merged.length - 1][1]) {
+              merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], e);
+            } else merged.push([s, e]);
+          }
+          let out2 = "";
+          let cursor = 0;
+          for (const [s, e] of merged) { out2 += reply.slice(cursor, s); cursor = e; }
+          out2 += reply.slice(cursor);
+          // 떠도는 단독 "json" 헤더 라인 정리
+          cleanReply = out2.replace(/(^|\n)\s*json\s*(?=\n|$)/gi, "").trim();
         }
 
         // JSON 제거 후 남은 leftover 정리:
@@ -434,9 +598,37 @@ export default function AIchatProject() {
           .replace(/(\n---\n)+/g, "\n---\n")                                      // 연속 구분선 압축
           .replace(/\n{3,}/g, "\n\n")                                             // 3+ 빈 줄 → 2개
           .trim();
+
+        // 잘림 감지: ```json 시작 후 닫는 fence 가 없거나, 본문 마지막이 미완성 JSON 처럼 보이면 안내문 prepend.
+        const looksTruncated =
+          /```json[\s\S]*$/m.test(cleanReply) ||           // 닫는 fence 없는 ```json
+          /[{[,]\s*$/.test(cleanReply) ||                   // 마지막 글자가 { [ , 로 끝남
+          /"PHASE\s*\d*"?\s*:?\s*"?\s*$/i.test(cleanReply); // PHASE 0X 도중 끊김
+        if (looksTruncated && removeRanges.length === 0) {
+          cleanReply = "⚠️ 응답이 길어 도중에 잘렸어요. 같은 메시지 다시 보내주시거나 ⭐로 핵심만 짧게 다시 입력해 주세요.\n\n" + cleanReply;
+        }
       }
 
-      setMessages((prev) => [...prev, { role: "bot", text: cleanReply, time: new Date() }]);
+      // JSON 만 오고 텍스트가 비면 (보통 batch mode 후속 응답) 기본 안내문 표시.
+      const finalReply = cleanReply && cleanReply.trim().length > 0
+        ? cleanReply
+        : "✨ 기획안과 7가지 세부 협의 사항을 정리했어요!\n\n아래 **'등록 폼에 반영하기'** 버튼을 누르시면 자동으로 입력돼요.";
+
+      // 7가지 세부 협의 마크다운("## 1. 작업 범위" 시작점) 이 본문에 포함돼 있으면
+      // 시각적으로 두 말풍선으로 나눠 표시 (앞: 등록폼 정리, 뒤: 7가지 협의).
+      const splitIdx = finalReply.search(/(?:^|\n)\s*##\s*1\.\s*작업\s*범위/);
+      if (splitIdx > 30) {
+        const head = finalReply.slice(0, splitIdx).trim();
+        const tail = finalReply.slice(splitIdx).trim();
+        const now = new Date();
+        setMessages((prev) => [
+          ...prev,
+          ...(head ? [{ role: "bot", text: head, time: now }] : []),
+          ...(tail ? [{ role: "bot", text: tail, time: new Date(now.getTime() + 1) }] : []),
+        ]);
+      } else {
+        setMessages((prev) => [...prev, { role: "bot", text: finalReply, time: new Date() }]);
+      }
     } catch (err) {
       console.error("[AIchatProject] AI 호출 실패:", err);
       setMessages((prev) => [
@@ -449,20 +641,75 @@ export default function AIchatProject() {
   };
 
   const formatText = (text) => {
-    return text.split("\n").map((line, i) => {
+    // 1) [[BLUE]]...[[/BLUE]] 영역을 파란색 박스 + ⭐ 한번에 입력하기 버튼으로 변환.
+    //    원본 텍스트를 평문 + 파란 박스 노드로 분할.
+    const blueRe = /\[\[BLUE\]\]([\s\S]*?)\[\[\/BLUE\]\]/g;
+    const segments = [];
+    let lastIdx = 0;
+    let bm;
+    while ((bm = blueRe.exec(text)) !== null) {
+      if (bm.index > lastIdx) segments.push({ kind: "plain", text: text.slice(lastIdx, bm.index) });
+      segments.push({ kind: "blue", text: bm[1].trim() });
+      lastIdx = bm.index + bm[0].length;
+    }
+    if (lastIdx < text.length) segments.push({ kind: "plain", text: text.slice(lastIdx) });
+
+    const renderPlain = (raw, keyPrefix) => raw.split("\n").map((line, i, arr) => {
       const parts = line.split(/(\*\*[^*]+\*\*)/g);
       return (
-        <span key={i}>
+        <span key={`${keyPrefix}-${i}`}>
           {parts.map((part, j) =>
             part.startsWith("**") && part.endsWith("**")
               ? <strong key={j}>{part.slice(2, -2)}</strong>
               : part
           )}
-          {i < text.split("\n").length - 1 && <br />}
+          {i < arr.length - 1 && <br />}
         </span>
       );
     });
+
+    return segments.map((seg, idx) => {
+      if (seg.kind === "blue") {
+        return (
+          <div key={`blue-${idx}`} style={{
+            background: "linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)",
+            border: "1.5px solid #BFDBFE",
+            borderRadius: 12,
+            padding: "12px 14px",
+            margin: "8px 0",
+            color: "#1E40AF",
+            fontSize: 13.5,
+            lineHeight: 1.6,
+            fontFamily: F,
+          }}>
+            <div style={{ marginBottom: 10 }}>{renderPlain(seg.text, `blue-${idx}-t`)}</div>
+            <button
+              type="button"
+              onClick={() => {
+                setInput((prev) => (prev.startsWith("⭐") ? prev : `⭐ ${prev}`.trim()));
+                // input 으로 포커스
+                setTimeout(() => {
+                  const el = document.querySelector('input[data-ai-chat-input="1"], textarea[data-ai-chat-input="1"]');
+                  el?.focus();
+                }, 30);
+              }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "8px 14px", borderRadius: 999, border: "none",
+                background: "linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)",
+                color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                fontFamily: F, boxShadow: "0 2px 8px rgba(59,130,246,0.35)",
+              }}
+            >
+              ⭐ 한 번에 모두 입력하기
+            </button>
+          </div>
+        );
+      }
+      return <span key={`plain-${idx}`}>{renderPlain(seg.text, `plain-${idx}`)}</span>;
+    });
   };
+
 
   const handleConfirm = () => {
     const savedProjectRegisterState = location.state?.projectRegisterState;
@@ -738,6 +985,7 @@ export default function AIchatProject() {
             <input
               type="text"
               autoFocus={false}
+              data-ai-chat-input="1"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => {

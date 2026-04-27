@@ -22,6 +22,7 @@ import java.util.Map;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final org.springframework.core.env.Environment springEnv;
 
     /** 현재 로그인 사용자의 프로필 세부 정보 조회. */
     @GetMapping("/me/detail")
@@ -61,6 +62,49 @@ public class ProfileController {
         try {
             UserProfileDetailResponse res = profileService.saveDetail(userId, req);
             return ResponseEntity.ok(res);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * [DEV ONLY] 특정 username 의 프로필 데이터 일괄 초기화.
+     * 로컬 개발 환경에서만 활성화 (spring.profiles.active=local).
+     * 운영 배포 시 자동 차단됨.
+     */
+    @PostMapping("/admin/reset/{username}")
+    public ResponseEntity<?> resetByUsername(@PathVariable String username) {
+        boolean isLocal = false;
+        for (String p : springEnv.getActiveProfiles()) if ("local".equalsIgnoreCase(p)) { isLocal = true; break; }
+        if (!isLocal) {
+            for (String p : springEnv.getDefaultProfiles()) if ("local".equalsIgnoreCase(p)) { isLocal = true; break; }
+        }
+        if (!isLocal) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "dev 전용 엔드포인트입니다."));
+        }
+        try {
+            profileService.resetByUsername(username);
+            return ResponseEntity.ok(Map.of("message", username + " 프로필을 초기화했습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 본인 프로필 데이터 일괄 초기화 (학력/경력/스킬/수상/자격증 + 자기소개/슬로건/GitHub URL 등).
+     * USERS 테이블의 username/email 등 계정 정보는 보존. 본인 인증 후 본인만 호출 가능.
+     */
+    @PostMapping("/me/reset")
+    public ResponseEntity<?> resetMyProfile() {
+        Long userId = AuthContext.currentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "로그인이 필요합니다."));
+        }
+        try {
+            profileService.resetMyProfile(userId);
+            return ResponseEntity.ok(Map.of("message", "프로필을 초기화했습니다."));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

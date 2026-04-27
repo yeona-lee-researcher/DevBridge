@@ -198,6 +198,8 @@ public class ProgressDashboardService {
     public EscrowResponse createEscrow(Long projectId, Long milestoneId, Long amount, Long payeeUserId) {
         Long clientId = ensureClient(projectId); ensureProjectActive(projectId);
         if (amount == null || amount <= 0) throw new IllegalArgumentException("금액이 올바르지 않습니다.");
+        // payeeUserId 가 안 들어오면 프로젝트의 IN_PROGRESS application 의 partnerUser 로 자동 해결.
+        if (payeeUserId == null) payeeUserId = resolvePartnerUserId(projectId);
         if (payeeUserId == null) throw new IllegalArgumentException("파트너 정보가 필요합니다.");
         ProjectEscrow e = ProjectEscrow.builder()
                 .projectId(projectId)
@@ -208,6 +210,24 @@ public class ProgressDashboardService {
                 .status(ProjectEscrow.EscrowStatus.PENDING)
                 .build();
         return EscrowResponse.from(escrowRepository.save(e));
+    }
+
+    /** 프로젝트의 IN_PROGRESS / CONTRACTED / ACCEPTED 상태 application 에서 partner userId 추출. */
+    private Long resolvePartnerUserId(Long projectId) {
+        List<ProjectApplication> apps = applicationRepository.findAllByProjectId(projectId);
+        if (apps == null || apps.isEmpty()) return null;
+        // 우선순위: IN_PROGRESS > CONTRACTED > ACCEPTED 의 application 의 partner
+        for (ProjectApplication.Status prefer : List.of(
+                ProjectApplication.Status.IN_PROGRESS,
+                ProjectApplication.Status.CONTRACTED,
+                ProjectApplication.Status.ACCEPTED)) {
+            for (ProjectApplication a : apps) {
+                if (a.getStatus() == prefer && a.getPartnerUser() != null) {
+                    return a.getPartnerUser().getId();
+                }
+            }
+        }
+        return null;
     }
 
     @Transactional

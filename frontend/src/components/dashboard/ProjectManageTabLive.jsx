@@ -374,9 +374,8 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
   const files = attachments.filter(a => a.kind==="FILE");
   const links = attachments.filter(a => a.kind==="LINK");
   const totalAmount = milestones.reduce((s,m) => s+(m.amount||0), 0);
-  // project.budgetAmount 는 만원 단위로 저장됨 (ProjectRegister/AIchatProject 양쪽 모두).
-  // 마일스톤이 아직 없을 때 fallback 용으로 원 단위로 변환.
-  const budgetAmountWon = Number(project.budgetAmount || 0) * 10000;
+  // project.budgetAmount 는 원 단위 (ProjectRegister/AIchatProject 통일).
+  const budgetAmountWon = Number(project.budgetAmount || 0);
   // D-Day 우선순위: 마지막 마일스톤 endDate (협의된 진짜 일정) > 프로젝트 deadline 컬럼 (등록시 입력값, 종종 과거)
   const lastMs = milestones[milestones.length - 1];
   const effectiveDeadline = lastMs?.endDate || project.deadline || project.deadlineDate;
@@ -676,7 +675,9 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
               </button>
             )}
             {role==="CLIENT" && (!esc || esc?.status==="PENDING") && ms.status!=="SUBMITTED" && ms.status!=="APPROVED" && ms.status!=="COMPLETED" && (
-              <button onClick={() => setPayOpen(esc || { milestoneId: ms.id, amount: ms.amount, status: "PENDING" })}
+              <button onClick={() => setPayOpen(esc
+                ? { ...esc, projectId }
+                : { projectId, milestoneId: ms.id, amount: ms.amount, status: "PENDING" })}
             onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg, #BBF7D0 0%, #86EFAC 100%)"; e.currentTarget.style.boxShadow="0 4px 12px rgba(134,239,172,0.5)"; }}
             onMouseLeave={e => { e.currentTarget.style.background="linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)"; e.currentTarget.style.boxShadow="0 1px 4px rgba(187,247,208,0.4)"; }}
             style={{ padding:"6px 16px", borderRadius:8, border:"none",
@@ -702,8 +703,8 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
             {/* 완료 기준 */}
             {ms.completionCriteria && (
           <div style={{ marginBottom:10, padding:10, borderRadius:8, background:"#FFFBEB", border:"1px solid #FDE68A" }}>
-            <div style={{ fontSize:11, fontWeight:800, color:"#92400E", marginBottom:3 }}>✅ 완료 기준</div>
-            <div style={{ fontSize:12, color:"#713F12", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{ms.completionCriteria}</div>
+            <div style={{ fontSize:12.5, fontWeight:800, color:"#92400E", marginBottom:3 }}>완료 기준</div>
+            <div style={{ fontSize:13.5, color:"#713F12", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{ms.completionCriteria}</div>
           </div>
             )}
             {/* 제출 메모 */}
@@ -954,7 +955,9 @@ function ProjectDetailLive({ projectId, role, projects, onBack, onGoSchedule, on
                 {esc?.paymentTxId && <div><strong>거래 ID:</strong> {esc.paymentTxId}</div>}
               </div>
               {role==="CLIENT" && (!esc || esc?.status==="PENDING") && (
-                <button onClick={() => { setEscrowDetailIdx(null); setPayOpen(esc || { milestoneId: ms.id, amount: ms.amount, status: "PENDING" }); }}
+                <button onClick={() => { setEscrowDetailIdx(null); setPayOpen(esc
+                  ? { ...esc, projectId }
+                  : { projectId, milestoneId: ms.id, amount: ms.amount, status: "PENDING" }); }}
                   onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg, #BBF7D0 0%, #86EFAC 100%)"; e.currentTarget.style.boxShadow="0 6px 18px rgba(134,239,172,0.55)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background="linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)"; e.currentTarget.style.boxShadow="0 2px 8px rgba(187,247,208,0.5)"; }}
                   style={{ width:"100%", marginTop:16, padding:"12px 0", borderRadius:10, border:"none",
@@ -1134,12 +1137,24 @@ function EscrowPayModal({ escrow, onClose, onSuccess, onToast }) {
 
   const handlePay = async () => {
     if (!pmId) return onToast?.("결제 수단을 선택해 주세요.");
+    if (!escrow?.projectId) return onToast?.("프로젝트 정보가 없습니다.");
     setSubmitting(true);
     try {
-      await escrowsApi.payMock(escrow.projectId, escrow.id, { paymentMethodId: pmId });
+      // escrow 가 아직 생성 전(=id 없음) 이면 먼저 생성 후 결제.
+      let escrowId = escrow.id;
+      if (!escrowId) {
+        if (!escrow.milestoneId) throw new Error("milestoneId 누락");
+        const created = await escrowsApi.create(escrow.projectId, {
+          milestoneId: escrow.milestoneId,
+          amount: escrow.amount,
+        });
+        escrowId = created?.id;
+        if (!escrowId) throw new Error("에스크로 생성 실패");
+      }
+      await escrowsApi.payMock(escrow.projectId, escrowId, { paymentMethodId: pmId });
       onSuccess?.();
     } catch (e) {
-      onToast?.(e?.response?.data?.message || "결제에 실패했습니다.");
+      onToast?.(e?.response?.data?.message || e?.message || "결제에 실패했습니다.");
     } finally { setSubmitting(false); }
   };
 
@@ -1186,28 +1201,98 @@ function EscrowPayModal({ escrow, onClose, onSuccess, onToast }) {
 function MilestoneSubmitModal({ milestone, projectId, onClose, onSuccess, onToast }) {
   const [note, setNote] = useState("");
   const [fileUrl, setFileUrl] = useState("");
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragHover, setDragHover] = useState(false);
+  const [boxHover, setBoxHover] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const inputRef = useRef(null);
+
+  const pickFiles = (fl) => {
+    if (!fl || fl.length === 0) return;
+    setFile(fl[0]);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragHover(false);
+    pickFiles(e.dataTransfer?.files);
+  };
 
   const handleSubmit = async () => {
+    if (!file) return onToast?.("필수 파일을 첨부해 주세요.");
     if (!note.trim()) return onToast?.("제출 메모를 입력해 주세요.");
     setSubmitting(true);
     try {
-      await milestonesApi.submit(projectId, milestone.id, { note: note.trim(), fileUrl: fileUrl.trim()||null });
+      // 1) 파일 업로드 → 첨부 ID/URL 확보
+      let uploadedUrl = fileUrl.trim() || null;
+      try {
+        setUploading(true);
+        const att = await projectAttachmentsApi.upload(projectId, file, { name: file.name });
+        if (att?.url) uploadedUrl = att.url;
+        else if (att?.id) uploadedUrl = `/api/projects/${projectId}/attachments/${att.id}/download`;
+      } finally { setUploading(false); }
+      // 2) 마일스톤 제출
+      await milestonesApi.submit(projectId, milestone.id, { note: note.trim(), fileUrl: uploadedUrl });
       onSuccess?.();
     } catch (e) {
       onToast?.(e?.response?.data?.message || "제출에 실패했습니다.");
     } finally { setSubmitting(false); }
   };
 
+  const dropActive = dragHover || boxHover;
+
   return (
     <ModalShell onClose={onClose} title={`마일스톤 제출 — ${milestone.title}`}>
       {milestone.completionCriteria && (
         <div style={{ padding:12, borderRadius:10, marginBottom:14, background:"#FFFBEB", border:"1px solid #FDE68A" }}>
-          <div style={{ fontSize:11, fontWeight:800, color:"#92400E", marginBottom:4 }}>완료 기준</div>
-          <div style={{ fontSize:12, color:"#713F12", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{milestone.completionCriteria}</div>
+          <div style={{ fontSize:12.5, fontWeight:800, color:"#92400E", marginBottom:4 }}>완료 기준</div>
+          <div style={{ fontSize:13.5, color:"#713F12", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{milestone.completionCriteria}</div>
         </div>
       )}
-      <label style={modalLabel}>제출 메모 *</label>
+
+      {/* 파일 첨부 (필수) — 연하늘-파스텔 그라데이션 + hover */}
+      <label style={modalLabel}>파일 첨부 <span style={{ color:"#EF4444" }}>*</span></label>
+      <input ref={inputRef} type="file" style={{ display:"none" }}
+        onChange={e => pickFiles(e.target.files)} />
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragHover(true); }}
+        onDragLeave={() => setDragHover(false)}
+        onDrop={onDrop}
+        onMouseEnter={() => setBoxHover(true)}
+        onMouseLeave={() => setBoxHover(false)}
+        style={{
+          padding: "26px 16px", borderRadius: 14, marginBottom: 14, cursor: "pointer",
+          border: `2px dashed ${dropActive ? "#7DD3FC" : "#BAE6FD"}`,
+          background: dropActive
+            ? "linear-gradient(135deg, #DBEAFE 0%, #E0F2FE 50%, #EDE9FE 100%)"
+            : "linear-gradient(135deg, #F0F9FF 0%, #F0F4FF 100%)",
+          textAlign: "center", fontFamily: F, transition: "all 0.18s",
+          boxShadow: dropActive ? "0 6px 16px rgba(125,211,252,0.30)" : "none",
+        }}>
+        {file ? (
+          <>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>📎</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1E40AF", marginBottom: 2 }}>{file.name}</div>
+            <div style={{ fontSize: 12, color: "#64748B" }}>
+              {file.size >= 1024 * 1024
+                ? (file.size / 1024 / 1024).toFixed(1) + " MB"
+                : (file.size / 1024).toFixed(0) + " KB"} · 변경하려면 다시 클릭
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 26, marginBottom: 4 }}>📎</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1E40AF", marginBottom: 2 }}>
+              클릭 또는 드래그하여 파일 첨부
+            </div>
+            <div style={{ fontSize: 12, color: "#64748B" }}>모든 형식 지원 · 최대 50MB</div>
+          </>
+        )}
+      </div>
+
+      <label style={modalLabel}>제출 메모 <span style={{ color:"#EF4444" }}>*</span></label>
       <textarea value={note} onChange={e => setNote(e.target.value)} rows={4}
         placeholder="작업 완료 내용 / 검토 시 봐야 할 부분 / 알려진 이슈 등"
         style={{ width:"100%", padding:12, borderRadius:10, border:"1px solid #E5E7EB",
@@ -1219,10 +1304,10 @@ function MilestoneSubmitModal({ milestone, projectId, onClose, onSuccess, onToas
           border:"1px solid #E5E7EB", fontSize:13, fontFamily:F, boxSizing:"border-box" }} />
       <div style={{ display:"flex", gap:10 }}>
         <button onClick={onClose} disabled={submitting} style={ghostBtn}>취소</button>
-        <button onClick={handleSubmit} disabled={submitting}
+        <button onClick={handleSubmit} disabled={submitting || uploading}
           style={{ ...primaryBtnStyle, flex:1.4, padding:"14px 0", fontSize:14,
-            opacity:submitting?0.6:1 }}>
-          {submitting?"제출 중…":"제출"}
+            opacity:(submitting || uploading)?0.6:1 }}>
+          {uploading ? "업로드 중…" : submitting ? "제출 중…" : "제출"}
         </button>
       </div>
     </ModalShell>

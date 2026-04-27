@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -39,7 +40,10 @@ public class MilestoneSeedingService {
     private final ContractModuleSeeder contractModuleSeeder;
     private final ObjectMapper om = new ObjectMapper();
 
-    @Transactional
+    // REQUIRES_NEW: 시드/보정 작업은 별도 트랜잭션으로 분리.
+    // listMilestones 같은 호출자 트랜잭션이 시드 실패로 rollback-only 마킹되어
+    // 정상 조회까지 500 나는 문제 방지.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int seedIfNeeded(Long projectId) {
         if (projectId == null) return 0;
 
@@ -58,6 +62,10 @@ public class MilestoneSeedingService {
 
         // 2) 기존 마일스톤이 모두 과거 (D+ 표시 원인) + 진척 없음 → 오늘 기준으로 일괄 시프트.
         try { rebaseStaleMilestones(projectId); } catch (Exception ignore) {}
+
+        // 3) 기존 마일스톤의 완료기준이 옛 형식("필수 제출물:" 통합 텍스트) 이면
+        //    completion.categories 기반의 phase-별 완료기준으로 in-place 업데이트.
+        try { refreshCompletionCriteriaIfStale(projectId); } catch (Exception ignore) {}
 
         if (!projectMilestoneRepository.findByProjectIdOrderBySeqAsc(projectId).isEmpty()) return 0;
 
@@ -94,7 +102,8 @@ public class MilestoneSeedingService {
         JsonNode payment = byKey.get("payment") != null ? readJson(byKey.get("payment").getData()) : null;
         long[] amounts = distributeAmounts(totalWon, phases.size(), payment);
 
-        String deliverableText = buildDeliverableText(byKey.get("deliverable"));
+        // 각 마일스톤의 완료기준은 completion.categories[i] (있으면) → 폴백으로 deliverables 통합 텍스트.
+        String[] perPhaseCriteria = buildPerPhaseCriteria(byKey.get("completion"), byKey.get("deliverable"), phases.size());
 
         LocalDate scheduleStart = parseDate(schedule.path("startDate").asText(null));
         if (scheduleStart == null) {
@@ -126,7 +135,7 @@ public class MilestoneSeedingService {
                     .seq(seq)
                     .title(num.isBlank() ? title : (num + " " + title))
                     .description(desc.isBlank() ? null : desc)
-                    .completionCriteria(deliverableText)
+                    .completionCriteria(perPhaseCriteria[seq - 1])
                     .amount(amounts[seq - 1])
                     .startDate(start)
                     .endDate(end)
@@ -155,7 +164,8 @@ public class MilestoneSeedingService {
             }
         }
         if (p.getBudgetAmount() != null && p.getBudgetAmount() > 0) {
-            return (long) p.getBudgetAmount() * 10_000L;
+            // budgetAmount 는 원 단위 (DataSeeder 가 구 만원 데이터 ×10000 마이그레이션).
+            return (long) p.getBudgetAmount();
         }
         return 10_000_000L;
     }
@@ -192,6 +202,44 @@ public class MilestoneSeedingService {
         return out;
     }
 
+    /**
+     * phase 개수에 맞춰 각 마일스톤의 완료기준 문자열 배열을 만든다.
+     * 우선순위:
+     *   1) completion.categories[i] → "title: desc" 단일
+     *   2) deliverable.deliverables[] 통합 텍스트 (기존 폴백)
+     */
+    private String[] buildPerPhaseCriteria(ProjectModule completionModule, ProjectModule deliverableModule, int phaseCount) {
+        String[] out = new String[phaseCount];
+        String fallback = buildDeliverableText(deliverableModule);
+
+        if (completionModule != null) {
+            JsonNode root = readJson(completionModule.getData());
+            JsonNode cats = root != null ? root.path("categories") : null;
+            if (cats != null && cats.isArray() && cats.size() > 0) {
+                for (int i = 0; i < phaseCount; i++) {
+                    // 카테고리 수가 phase 수와 다를 때는 비례 매핑.
+                    int cIdx = (cats.size() == phaseCount)
+                            ? i
+                            : (int) Math.min(cats.size() - 1L, (long) i * cats.size() / phaseCount);
+                    JsonNode cat = cats.get(cIdx);
+                    String title = cat.path("title").asText("").trim();
+                    String desc  = cat.path("desc").asText("").trim();
+                    StringBuilder sb = new StringBuilder();
+                    if (!title.isBlank()) sb.append(title);
+                    if (!desc.isBlank()) {
+                        if (sb.length() > 0) sb.append("\n");
+                        sb.append(desc);
+                    }
+                    out[i] = sb.length() > 0 ? sb.toString() : fallback;
+                }
+                return out;
+            }
+        }
+        // 폴백: 모든 마일스톤이 동일한 deliverable 통합 텍스트.
+        for (int i = 0; i < phaseCount; i++) out[i] = fallback;
+        return out;
+    }
+
     private String buildDeliverableText(ProjectModule deliverableModule) {
         if (deliverableModule == null) return null;
         JsonNode root = readJson(deliverableModule.getData());
@@ -206,6 +254,36 @@ public class MilestoneSeedingService {
             sb.append(icon).append(" ").append(label).append("\n");
         }
         return sb.toString().trim();
+    }
+
+    /**
+     * 모든 마일스톤이 옛 통합 deliverable 텍스트("필수 제출물:..." 형태로 동일) 인 경우
+     * completion.categories 기반의 phase-별 완료기준으로 덮어쓴다.
+     * 마일스톤 자체(금액/날짜/상태)는 보존.
+     */
+    private void refreshCompletionCriteriaIfStale(Long projectId) {
+        List<ProjectMilestone> list = projectMilestoneRepository.findByProjectIdOrderBySeqAsc(projectId);
+        if (list.isEmpty()) return;
+
+        // 모두 동일 + "필수 제출물:" 으로 시작하면 옛 형식 → 갱신.
+        String first = list.get(0).getCompletionCriteria();
+        boolean allSame = first != null && first.startsWith("필수 제출물:")
+                && list.stream().allMatch(m -> first.equals(m.getCompletionCriteria()));
+        if (!allSame) return;
+
+        List<ProjectModule> modules = projectModuleRepository.findByProjectId(projectId);
+        Map<String, ProjectModule> byKey = new HashMap<>();
+        for (ProjectModule m : modules) byKey.put(m.getModuleKey(), m);
+
+        String[] perPhase = buildPerPhaseCriteria(byKey.get("completion"), byKey.get("deliverable"), list.size());
+        // 만약 새로 만든 것도 모두 fallback (= 옛 텍스트와 동일) 이면 굳이 update 안 함.
+        if (perPhase.length > 0 && perPhase[0] != null && perPhase[0].equals(first)) return;
+
+        for (int i = 0; i < list.size(); i++) {
+            list.get(i).setCompletionCriteria(perPhase[i]);
+        }
+        projectMilestoneRepository.saveAll(list);
+        log.info("[refreshCompletionCriteria] {} 마일스톤의 완료기준을 phase-별로 갱신 projectId={}", list.size(), projectId);
     }
 
     /**

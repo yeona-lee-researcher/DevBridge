@@ -50,6 +50,7 @@ public class DataSeeder implements CommandLineRunner {
     private final PartnerReviewRepository partnerReviewRepository;
     private final ClientReviewRepository clientReviewRepository;
     private final ContractModuleSeeder contractModuleSeeder;
+    private final com.DevBridge.devbridge.repository.ProjectModuleRepository projectModuleRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -88,7 +89,89 @@ public class DataSeeder implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("[DataSeeder] PROJECT_MODULES 백필 실패: {}", e.getMessage());
         }
+
+        // budget* 단위 마이그레이션: 만원 → 원 (×10000).
+        // 휴리스틱: budget_amount/min/max 가 100,000 미만이면 만원 단위로 저장된 옛 데이터로 간주.
+        // 100,000원 = 10만원. 실제 외주 프로젝트가 10만원 미만일 가능성은 거의 없으므로 안전한 임계.
+        // 멱등성: 100,000 이상이면 원 단위로 이미 마이그레이션된 것으로 보고 skip.
+        try {
+            int migrated = migrateBudgetManToWon();
+            if (migrated > 0) log.info("[DataSeeder] budget 단위 마이그레이션 (만원→원): {} 프로젝트", migrated);
+        } catch (Exception e) {
+            log.warn("[DataSeeder] budget 마이그레이션 실패: {}", e.getMessage());
+        }
+
+        // contractTerms (project 컬럼) → PROJECT_MODULES 백필.
+        // 옛 등록 흐름에선 ContractModuleSeeder 가 기본 템플릿으로만 모듈을 시드해서
+        // AI chat 의 협의 내용이 모듈에 반영 안 됨. 기본 시드 마커가 남아있는 모듈만 덮어씀
+        // (사용자가 협의 중 수정한 모듈은 보존).
+        try {
+            int updated = backfillModulesFromContractTerms();
+            if (updated > 0) log.info("[DataSeeder] contractTerms → PROJECT_MODULES 백필: {} 프로젝트", updated);
+        } catch (Exception e) {
+            log.warn("[DataSeeder] contractTerms 백필 실패: {}", e.getMessage());
+        }
         log.info("===== DataSeeder 완료 =====");
+    }
+
+    /**
+     * 옛 흐름에서 PROJECT_MODULES 가 기본 템플릿으로만 채워진 프로젝트에 대해,
+     * project.contract_terms (AI 생성) 의 내용을 모듈에 적용.
+     * 휴리스틱: scope 모듈의 included 가 기본 템플릿 문구("핵심 기능 설계 및 구현") 를 그대로 포함하면 백필.
+     */
+    @Transactional
+    private int backfillModulesFromContractTerms() {
+        java.util.List<com.DevBridge.devbridge.entity.Project> all = projectRepository.findAll();
+        int updated = 0;
+        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+        for (com.DevBridge.devbridge.entity.Project p : all) {
+            String ctJson = p.getContractTerms();
+            if (ctJson == null || ctJson.isBlank()) continue;
+
+            // scope 모듈 확인
+            com.DevBridge.devbridge.entity.ProjectModule scopeMod =
+                    projectModuleRepository.findByProjectIdAndModuleKey(p.getId(), "scope").orElse(null);
+            if (scopeMod == null || scopeMod.getData() == null) continue;
+            // 기본 템플릿 마커 검출
+            if (!scopeMod.getData().contains("핵심 기능 설계 및 구현")) continue;
+
+            try {
+                java.util.Map<String, Object> ct = om.readValue(ctJson,
+                        new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+                contractModuleSeeder.applyContractTerms(p, ct);
+                updated++;
+            } catch (Exception e) {
+                log.warn("[backfillModules] projectId={} 실패: {}", p.getId(), e.getMessage());
+            }
+        }
+        return updated;
+    }
+
+    /** 100,000 미만의 budget 값(만원 단위로 추정)을 원 단위로 ×10000 변환. 멱등. */
+    @Transactional
+    private int migrateBudgetManToWon() {
+        java.util.List<com.DevBridge.devbridge.entity.Project> all = projectRepository.findAll();
+        int migrated = 0;
+        for (com.DevBridge.devbridge.entity.Project p : all) {
+            boolean changed = false;
+            Integer ba = p.getBudgetAmount();
+            if (ba != null && ba > 0 && ba < 100_000) {
+                p.setBudgetAmount(ba * 10_000);
+                changed = true;
+            }
+            Integer bMin = p.getBudgetMin();
+            if (bMin != null && bMin > 0 && bMin < 100_000) {
+                p.setBudgetMin(bMin * 10_000);
+                changed = true;
+            }
+            Integer bMax = p.getBudgetMax();
+            if (bMax != null && bMax > 0 && bMax < 100_000) {
+                p.setBudgetMax(bMax * 10_000);
+                changed = true;
+            }
+            if (changed) { projectRepository.save(p); migrated++; }
+        }
+        return migrated;
     }
 
     // ----------------------------------------------------

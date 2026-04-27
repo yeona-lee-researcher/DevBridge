@@ -655,7 +655,32 @@ ${data.skills.map((s) => `• **${s.techName}** — ${s.commits.toLocaleString()
       (incoming || []).forEach(item => { const k = keyFn(item); if (k) map.set(k, item); });
       return Array.from(map.values());
     };
-    const normKey = (s) => (s || "").toString().toLowerCase().replace(/\s+/g, "");
+    const normKey = (s) => {
+      const COMPANY_ALIAS_FLAT = {
+        "삼성전자": ["samsung electronics", "samsung", "samsungelectronics"],
+        "lg전자": ["lg electronics", "lge", "lgelectronics"],
+        "sk하이닉스": ["sk hynix", "skhynix"],
+        "현대자동차": ["hyundai motor", "hyundai", "hyundaimotorcompany"],
+        "카카오": ["kakao"], "네이버": ["naver", "navercorp"],
+        "포항공과대학교": ["postech", "포스텍"],
+        "고려대학교": ["korea university", "고려대"],
+        "서울대학교": ["seoul national university", "snu", "서울대"],
+        "연세대학교": ["yonsei university", "연세대"],
+        "한국과학기술원": ["kaist"],
+        "국립통계연구원": ["statistics research institute", "국가통계연구센터", "국가통계센터", "통계연구원", "통계청"],
+      };
+      const m = new Map();
+      for (const [canon, aliases] of Object.entries(COMPANY_ALIAS_FLAT)) {
+        m.set(canon.replace(/\s+/g, "").toLowerCase(), canon);
+        for (const a of aliases) m.set(a.replace(/\s+/g, "").toLowerCase(), canon);
+      }
+      const base = (s || "").toString().toLowerCase().replace(/\s+/g, "")
+        .replace(/(주식회사|주|co\.|corp\.?|inc\.?|ltd\.?|llc\.?|gmbh|corporation|company)$/g, "")
+        .replace(/사업부$/g, "").replace(/연구소$/g, "").replace(/랩$/g, "");
+      // 삼성 계열 강제 통합
+      if (base.includes("samsung") || base.includes("삼성")) return "삼성전자";
+      return m.get(base) || base;
+    };
 
     let educations = [];
     let careers = [];
@@ -679,12 +704,53 @@ ${data.skills.map((s) => `• **${s.techName}** — ${s.commits.toLocaleString()
 
       if (pdfProfile.careers?.length) {
         // ── 같은 회사 이력은 하나로 묶고, 각 세부 이력은 프로젝트로 정리 ──
-        const norm = (s) => (s || "").replace(/\s+/g, "").toLowerCase();
-        const groups = new Map(); // key: 정규화된 회사명 → { items: [...] }
+        // 한/영 회사명 통합 매핑 (양방향)
+        const COMPANY_ALIAS = {
+          // 삼성 계열: 이름에 'samsung' 또는 '삼성' 포함이면 모두 삼성전자로 통일 (후처리에서 별도 처리)
+          "삼성전자": ["samsung electronics", "samsung", "samsungelectronics", "삼성전자인텔리전스데이터사이언스연구소", "삼성인텔리전스데이터사이언스", "samsung intelligence data science", "삼성메모리사업부", "samsung memory", "삼성전자메모리사업부"],
+          // 삼성 prefix 캐치: 아래 normCompany에서 추가로 처리
+          "lg전자": ["lg electronics", "lge", "lgelectronics"],
+          "sk하이닉스": ["sk hynix", "skhynix"],
+          "현대자동차": ["hyundai motor", "hyundai", "hyundaimotorcompany"],
+          "카카오": ["kakao"],
+          "네이버": ["naver", "navercorp", "naver corp"],
+          "라인": ["line", "line corporation", "linecorporation"],
+          "쿠팡": ["coupang"],
+          "우아한형제들": ["woowahan", "woowahan brothers", "배달의민족"],
+          "토스": ["toss", "viva republica", "vivarepublica"],
+          "크래프톤": ["krafton"],
+          "포항공과대학교": ["postech", "포스텍"],
+          "고려대학교": ["korea university", "고려대"],
+          "서울대학교": ["seoul national university", "snu", "서울대"],
+          "연세대학교": ["yonsei university", "연세대"],
+          "한국과학기술원": ["kaist"],
+          "국립통계연구원": ["statistics research institute", "국가통계연구센터", "국가통계센터", "통계연구원", "통계청"],
+        };
+        // 회사명 → 대표 한글명 매핑 구축
+        const aliasToCanon = new Map();
+        for (const [canon, aliases] of Object.entries(COMPANY_ALIAS)) {
+          aliasToCanon.set(canon.replace(/\s+/g, "").toLowerCase(), canon);
+          for (const a of aliases) aliasToCanon.set(a.replace(/\s+/g, "").toLowerCase(), canon);
+        }
+        const normCompany = (s) => {
+          const base = (s || "").replace(/\s+/g, "").toLowerCase()
+            .replace(/(주식회사|주|co\.|corp\.?|inc\.?|ltd\.?|llc\.?|gmbh|corporation|company)$/g, "")
+            .replace(/사업부$/g, "").replace(/연구소$/g, "").replace(/랩$/g, "");
+          // 삼성 계열 강제 통합: 'samsung' 또는 '삼성' 포함이면 무조건 삼성전자
+          if (base.includes("samsung") || base.includes("삼성")) return "삼성전자";
+          return aliasToCanon.get(base) || base;
+        };
+        const groups = new Map(); // key: 정규화된 회사명 → { companyName, items }
         pdfProfile.careers.forEach((c) => {
-          const key = norm(c.companyName);
+          const key = normCompany(c.companyName);
           if (!key) return;
-          if (!groups.has(key)) groups.set(key, { companyName: c.companyName, items: [] });
+          if (!groups.has(key)) {
+            // 대표 표시명: 한글 우선, 없으면 원본
+            const displayName = aliasToCanon.has(normCompany(c.companyName))
+              ? aliasToCanon.get((c.companyName || "").replace(/\s+/g, "").toLowerCase()) || c.companyName
+              : c.companyName;
+            groups.set(key, { companyName: displayName, items: [] });
+          }
           groups.get(key).items.push(c);
         });
 
@@ -729,27 +795,71 @@ ${data.skills.map((s) => `• **${s.techName}** — ${s.commits.toLocaleString()
       }
 
       if (pdfProfile.educations?.length) {
-        educations = pdfProfile.educations.map((e, i) => {
-          const deg = (e.degree || "학사").trim();
+        // 한글 학교명 → 영문명 변환 (AI가 한글만 줘도 영문으로 저장)
+        const SCHOOL_KO_TO_EN = {
+          "고려대학교": "Korea University", "고려대": "Korea University",
+          "서울대학교": "Seoul National University", "서울대": "Seoul National University",
+          "연세대학교": "Yonsei University", "연세대": "Yonsei University",
+          "포항공과대학교": "POSTECH", "포스텍": "POSTECH",
+          "한국과학기술원": "KAIST",
+          "성균관대학교": "Sungkyunkwan University",
+          "한양대학교": "Hanyang University",
+          "이화여자대학교": "Ewha Womans University",
+          "시카고 대학교": "University of Chicago", "시카고대학교": "University of Chicago",
+        };
+        // 학교명 → 영문명 우선 반환 (한글이면 영문으로 변환, 영문이면 그대로)
+        const toEnSchoolName = (name) => {
+          const trimmed = (name || "").trim();
+          return SCHOOL_KO_TO_EN[trimmed] || trimmed;
+        };
+        // dedup용 정규화 키 (한/영 동일 학교 → 같은 key)
+        const normSchool = (name) => {
+          const en = toEnSchoolName(name);
+          return en.toLowerCase().replace(/\s+/g, "");
+        };
+
+        // 같은 학교+학위는 하나만 유지 (Map으로 dedup)
+        const engFirst = new Map();
+        for (const e of pdfProfile.educations) {
+          const deg = (e.degree || "bachelor").trim();
           let schoolType = "대학교(4년)";
           let degreeType = "학사";
-          if (deg.includes("석사")) { schoolType = "대학원(석사)"; degreeType = "석사"; }
-          else if (deg.includes("박사")) { schoolType = "대학원(박사)"; degreeType = "박사"; }
-          return {
-            id: baseId + 2000 + i,
+          const degL = deg.toLowerCase();
+          if (degL.includes("phd") || degL.includes("ph.d") || degL.includes("박사") || degL.includes("doctor")) {
+            schoolType = "대학원(박사)"; degreeType = "박사";
+          } else if (degL.includes("m.s") || degL.includes("ms ") || degL.includes("master") || degL.includes("석사")) {
+            schoolType = "대학원(석사)"; degreeType = "석사";
+          }
+          // 재학중 여부: isCurrent=true 또는 graduationDate에 'now'/'present'/'현재' 포함
+          const gradRaw = (e.graduationDate || "").toLowerCase();
+          const isCurrent = e.isCurrent === true || gradRaw.includes("now") || gradRaw.includes("현재") || gradRaw.includes("present");
+          // 항상 영문명으로 저장
+          const schoolNameEn = toEnSchoolName(e.schoolName || "");
+          const schoolKey = normSchool(e.schoolName) + "|" + degreeType;
+          const entry = {
             schoolType,
-            schoolName: e.schoolName || "",
+            schoolName: schoolNameEn,
             track: "",
             major: e.major || "",
             degreeType,
-            status: "졸업",
+            status: isCurrent ? "재학중" : "졸업",
             admissionDate: "",
-            graduationDate: e.graduationDate || "",
+            graduationDate: isCurrent ? "" : (e.graduationDate || ""),
             gpa: "",
             gpaScale: "4.5",
             researchTopic: "",
           };
-        });
+          // 같은 key가 없으면 추가, 있으면 영문명 entry로 덮어쓰기
+          if (!engFirst.has(schoolKey)) {
+            engFirst.set(schoolKey, entry);
+          } else {
+            const existing = engFirst.get(schoolKey);
+            const existingIsEng = /[a-zA-Z]/.test((existing.schoolName || "").slice(0, 3));
+            const newIsEng = /[a-zA-Z]/.test(schoolNameEn.slice(0, 3));
+            if (!existingIsEng && newIsEng) engFirst.set(schoolKey, entry);
+          }
+        }
+        educations = Array.from(engFirst.values()).map((e, i) => ({ ...e, id: baseId + 2000 + i }));
       }
 
       if (pdfProfile.awards?.length) {
@@ -794,25 +904,10 @@ ${data.skills.map((s) => `• **${s.techName}** — ${s.commits.toLocaleString()
           educations[i].verifiedSchool = true;
           educations[i].verifiedEmail = verifiedEmail.email;
         });
-      } else {
-        // 없으면 맨 앞에 새로 추가
-        educations.unshift({
-          id: baseId + 9001,
-          schoolType: sch.type,
-          schoolName: sch.name,
-          track: "",
-          major: "",
-          degreeType: "학사",
-          status: "재학",
-          admissionDate: "",
-          graduationDate: "",
-          gpa: "",
-          gpaScale: "4.5",
-          researchTopic: "",
-          verifiedSchool: true,
-          verifiedEmail: verifiedEmail.email,
-        });
       }
+      // 매칭 없을 때 새 항목 자동 추가하지 않음.
+      // (PDF/AI 파싱이 영문명 "Korea University" 로 학력 만들었을 때 인증 후 한국어 "고려대학교" 가 추가로 생기는 중복 방지.
+      //  실제 학력은 PartnerProfile/Client_Profile 진입 시 verifiedEmail 기준으로 retroactive 인증 마크가 자동 표시됨.)
     }
     if (verifiedEmail?.type === "company") {
       const companyName = lookupCompanyByEmail(verifiedEmail.email);
@@ -847,7 +942,28 @@ ${data.skills.map((s) => `• **${s.techName}** — ${s.commits.toLocaleString()
 
     // educations: 학교 + 학위 조합으로 dedup (학사·석사·박사 별도 유지)
     if (educations.length) {
-      patch.educations = mergeDedup(patch.educations || [], educations, (e) => normKey(e.schoolName) + "|" + normKey(e.degreeType || e.degree));
+      // 한글→영문 변환 (파싱 블록과 동일한 매핑)
+      const SCHOOL_KO_TO_EN_DEDUP = {
+        "고려대학교": "Korea University", "고려대": "Korea University",
+        "서울대학교": "Seoul National University", "서울대": "Seoul National University",
+        "연세대학교": "Yonsei University", "연세대": "Yonsei University",
+        "포항공과대학교": "POSTECH", "포스텍": "POSTECH",
+        "한국과학기술원": "KAIST",
+        "성균관대학교": "Sungkyunkwan University",
+        "한양대학교": "Hanyang University",
+        "이화여자대학교": "Ewha Womans University",
+        "시카고 대학교": "University of Chicago", "시카고대학교": "University of Chicago",
+      };
+      const normSchoolKey = (name) => {
+        const trimmed = (name || "").trim();
+        const en = SCHOOL_KO_TO_EN_DEDUP[trimmed] || trimmed;
+        return en.toLowerCase().replace(/\s+/g, "");
+      };
+      patch.educations = mergeDedup(
+        patch.educations || [],
+        educations,
+        (e) => normSchoolKey(e.schoolName) + "|" + normKey(e.degreeType || e.degree),
+      );
     }
     // careers: 회사명 기준 dedup (같은 회사 여러 기간은 PDF 측에서 이미 그룹핑됨)
     if (careers.length) {

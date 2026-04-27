@@ -21,9 +21,11 @@ import { projectsApi, partnersApi, applicationsApi, profileApi, projectModulesAp
 /* ── 찜 목록 상세 API 응답을 카드 표시용으로 매핑 ───────────── */
 function toCardProject(p) {
   if (!p) return null;
+  // budget* 는 원 단위 저장 → 리스트에선 만원으로 압축 표시
+  const wonToMan = (n) => Math.floor(Number(n || 0) / 10000);
   const budget = p.budget
-    || (p.budgetMin && p.budgetMax ? `${Number(p.budgetMin).toLocaleString()}만~${Number(p.budgetMax).toLocaleString()}만원` : null)
-    || (p.budgetAmount ? `${Number(p.budgetAmount).toLocaleString()}만원` : "협의");
+    || (p.budgetMin && p.budgetMax ? `${wonToMan(p.budgetMin).toLocaleString()}만~${wonToMan(p.budgetMax).toLocaleString()}만원` : null)
+    || (p.budgetAmount ? `${wonToMan(p.budgetAmount).toLocaleString()}만원` : "협의");
   const period = p.period || (p.durationMonths ? `${p.durationMonths}개월` : "협의");
   const isFree = p.isPartnerFree === true || p.priceType === "무료";
   return {

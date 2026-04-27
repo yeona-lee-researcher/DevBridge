@@ -45,7 +45,8 @@ public class ContractModuleSeeder {
     public boolean repairPaymentIfStale(Project p) {
         if (p == null || p.getId() == null) return false;
         if (p.getBudgetAmount() == null || p.getBudgetAmount() <= 0) return false;
-        long expectedWon = (long) p.getBudgetAmount() * 10_000L;
+        // budgetAmount 는 원 단위 (DataSeeder 가 구 만원 데이터 ×10000 마이그레이션 처리).
+        long expectedWon = (long) p.getBudgetAmount();
 
         ProjectModule pm = projectModuleRepository.findByProjectIdAndModuleKey(p.getId(), "payment").orElse(null);
         if (pm == null) return false;
@@ -69,6 +70,52 @@ public class ContractModuleSeeder {
         projectModuleRepository.save(pm);
         log.info("[ContractModuleSeeder] payment 모듈 자동 보정 projectId={} {} → {}", p.getId(), currentTotal, expectedWon);
         return true;
+    }
+
+    /**
+     * AI chat 등에서 받은 contractTerms (Map) 를 PROJECT_MODULES 의 각 모듈 data 에 덮어쓴다.
+     * FE 키 → BE module_key 매핑:
+     *   scope → scope, deliverables → deliverable, schedule → schedule, payment → payment,
+     *   revision → revision, completion → completion, specialTerms → terms.
+     * 매칭되는 키가 contractTerms 에 없으면 해당 모듈은 건드리지 않음 (기본 시드 값 유지).
+     */
+    @Transactional
+    public void applyContractTerms(Project p, java.util.Map<String, Object> contractTerms) {
+        if (p == null || p.getId() == null || contractTerms == null || contractTerms.isEmpty()) return;
+        java.util.Map<String, String> keyMap = java.util.Map.of(
+                "scope", "scope",
+                "deliverables", "deliverable",
+                "schedule", "schedule",
+                "payment", "payment",
+                "revision", "revision",
+                "completion", "completion",
+                "specialTerms", "terms"
+        );
+        keyMap.forEach((feKey, beKey) -> {
+            Object val = contractTerms.get(feKey);
+            if (val == null) return;
+            String json;
+            try { json = om.writeValueAsString(val); }
+            catch (Exception e) { return; }
+            ProjectModule pm = projectModuleRepository.findByProjectIdAndModuleKey(p.getId(), beKey).orElse(null);
+            if (pm != null) {
+                pm.setData(json);
+                projectModuleRepository.save(pm);
+            } else {
+                // 시드가 아직 안 됐으면 새로 INSERT
+                ProjectModule fresh = ProjectModule.builder()
+                        .projectId(p.getId())
+                        .moduleKey(beKey)
+                        .status("미확정")
+                        .data(json)
+                        .lastModifierId(p.getUser() != null ? p.getUser().getId() : null)
+                        .lastModifierName(p.getUser() != null ? p.getUser().getUsername() : null)
+                        .build();
+                projectModuleRepository.save(fresh);
+            }
+        });
+        log.info("[ContractModuleSeeder] AI contractTerms 적용 완료 projectId={}, keys={}",
+                p.getId(), contractTerms.keySet());
     }
 
     /** 신규 프로젝트 1건의 7개 모듈 시드 (이미 있으면 skip). */

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { applicationsApi, portfolioApi, projectsApi } from "../../api";
 import { toPortfolioEditorSeed, toPortfolioRequest } from "../../lib/portfolio";
 import mascotIcon from "../../assets/hero_check.png";
+import { renderProjectOverview } from "../../lib/projectMarkdown";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
@@ -356,7 +357,7 @@ function SectionBlock({ title, desc, items, addedMap, busyKey, onToggle, onOpenE
                     </span>
                     <span style={{ fontSize: 17, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{item.title}</span>
                   </div>
-                  <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 10px", fontFamily: F }}>{item.desc}</p>
+                  <div style={{ margin: "0 0 10px" }}>{renderProjectOverview(item.desc)}</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
                     {(item.tags || []).map((tag) => (
                       <span key={tag} style={{ padding: "3px 10px", borderRadius: 99, background: "#F8FAFC", border: "1px solid #E2E8F0", fontSize: 12, color: "#475569", fontFamily: F }}>{tag}</span>
