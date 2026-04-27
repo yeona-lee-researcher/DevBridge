@@ -83,10 +83,11 @@ public class GeminiService {
             ));
         }
 
-        // 과도한 TPM 사용을 피하기 위해 출력/추론 예산을 보수적으로 제한한다.
+        // chat 응답은 짧게 — 출력 토큰 제한이 응답 시간을 가장 크게 좌우.
+        // 한 turn 당 보통 200-800 토큰이면 충분하므로 2048로 캡.
         body.put("generationConfig", Map.of(
                 "temperature", 0.8,
-                "maxOutputTokens", 5000
+                "maxOutputTokens", 2048
         ));
 
         Map<String, Object> response = generateContent(body);
