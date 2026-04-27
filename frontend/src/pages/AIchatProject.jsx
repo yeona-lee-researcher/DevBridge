@@ -387,23 +387,26 @@ export default function AIchatProject() {
           return out;
         };
 
-        // 1) 정상적으로 ```json ... ``` 로 닫힌 블록
-        const closedMatch = reply.match(/```json\s*([\s\S]*?)\s*```/);
-        if (closedMatch) {
+        // 1) 닫힌 ```json ... ``` 블록 모두 추출 (전역 /g) — 한 응답에 여러 블록 있을 수 있음
+        const closedRegex = /```json\s*([\s\S]*?)\s*```/g;
+        let closedAny = false;
+        let m;
+        while ((m = closedRegex.exec(reply)) !== null) {
+          closedAny = true;
           try {
-            const parsed = syncTopLevelFromContractTerms(JSON.parse(closedMatch[1]));
+            const parsed = syncTopLevelFromContractTerms(JSON.parse(m[1]));
             setExtractedData((prev) => ({ ...(prev || {}), ...parsed }));
           } catch (e) {
-            console.warn("[AIchatProject] JSON 파싱 실패:", e);
+            console.warn("[AIchatProject] JSON 파싱 실패 (블록은 말풍선에서는 숨김):", e?.message);
           }
-          cleanReply = reply.replace(/```json[\s\S]*?```/, "").trim();
+        }
+        if (closedAny) {
+          cleanReply = reply.replace(/```json[\s\S]*?```/g, "").trim();
         } else if (reply.includes("```json")) {
           // 2) ```json 으로 시작했지만 닫는 fence 가 없는 경우 — truncated 응답.
-          //    파싱은 시도해보고 실패해도 채팅 말풍선에서는 잘라냄 (raw JSON 노출 차단).
           const startIdx = reply.indexOf("```json");
           const tail = reply.slice(startIdx + "```json".length).trim();
           try {
-            // 가장 바깥 `{` 부터 마지막 `}` 까지만 추출 시도
             const firstBrace = tail.indexOf("{");
             if (firstBrace !== -1) {
               let depth = 0; let endIdx = -1;
@@ -421,6 +424,16 @@ export default function AIchatProject() {
           }
           cleanReply = reply.slice(0, startIdx).trim();
         }
+
+        // JSON 제거 후 남은 leftover 정리:
+        //  - 빈 section header: "### N. ..." 다음에 다음 section header 또는 끝까지 비어있으면 헤더 자체 제거
+        //  - 연속된 "---" 구분선 정리
+        //  - 연속 빈 줄 압축
+        cleanReply = cleanReply
+          .replace(/(^|\n)#{2,4}\s*\d+\.\s*[^\n]*\n+(?=(\n|#{2,4}\s|$))/g, "$1")  // 빈 section header 제거
+          .replace(/(\n---\n)+/g, "\n---\n")                                      // 연속 구분선 압축
+          .replace(/\n{3,}/g, "\n\n")                                             // 3+ 빈 줄 → 2개
+          .trim();
       }
 
       setMessages((prev) => [...prev, { role: "bot", text: cleanReply, time: new Date() }]);
