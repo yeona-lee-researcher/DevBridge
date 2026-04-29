@@ -9,6 +9,7 @@ import { profileApi } from "../api/profile.api";
 import { projectsApi } from "../api/projects.api";
 import { applicationsApi } from "../api/applications.api";
 import { applyVerifiedSchool } from "../lib/schoolMatch";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
@@ -67,6 +68,7 @@ function Toggle({ on, onChange }) {
 /* ── 프로필 메뉴 관리 탭 콘텐츠 ─────────────────────────── */
 function ProfileMenuTab() {
   const { partnerProfileDetail, updatePartnerProfileDetail } = useStore();
+  const { t } = useLanguage();
   const initState = Object.fromEntries(MENU_ITEMS.map(m => [m.key, true]));
   const [toggles, setToggles] = useState(
     { ...initState, ...(partnerProfileDetail?.profileMenuToggles || {}) }
@@ -83,10 +85,10 @@ function ProfileMenuTab() {
   return (
     <div>
       <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 8px", fontFamily: F }}>
-        프로필 메뉴 관리
+        {t("partnerProfile.menuManage.title")}
       </h2>
       <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 32px", fontFamily: F, lineHeight: 1.7 }}>
-        포트폴리오 및 프로필 페이지에 노출할 항목을 선택할 수 있습니다. 스위치를 켜면 해당 정보가 공개됩니다.
+        {t("partnerProfile.menuManage.desc")}
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -141,7 +143,7 @@ function ProfileMenuTab() {
             transition: "background 0.3s",
           }}
         >
-          {saved ? "✓ 저장 완료!" : "설정 저장하기"}
+          {saved ? t("partnerProfile.menuManage.saved") : t("partnerProfile.menuManage.saveBtn")}
         </button>
       </div>
     </div>
@@ -220,6 +222,7 @@ function IntroCounter({ value }) {
 
 function IntroTab() {
   const { partnerProfileDetail, updatePartnerProfileDetail, syncProfileDetailToServer, bumpProfileRefresh } = useStore();
+  const { t } = useLanguage();
   const [shortBio, setShortBio] = useState(partnerProfileDetail?.shortBio || "");
   const [slogan, setSlogan] = useState(partnerProfileDetail?.slogan || "");
   const [intro, setIntro] = useState(partnerProfileDetail?.bio || "");
@@ -270,29 +273,29 @@ function IntroTab() {
   return (
     <div>
       <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 8px", fontFamily: F }}>
-        파트너로서 자기소개
+        {t("partnerProfile.intro.title")}
       </h2>
       <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 32px", fontFamily: F, lineHeight: 1.7 }}>
-        포트폴리오 및 프로필 페이지에 노출할 항목을 선택할 수 있습니다. 스위치를 켜면 해당 정보가 클라이언트에게 공개됩니다.
+        {t("partnerProfile.intro.desc")}
       </p>
 
-      <IntroFieldLabel text="슬로건 (배너 제목)" />
-      <ShortBioInput value={slogan} onChange={setSlogan} placeholder="배너 카드 상단에 크게 표시될 한 문장 슬로건을 입력해주세요." />
+      <IntroFieldLabel text={t("partnerProfile.intro.slogan")} />
+      <ShortBioInput value={slogan} onChange={setSlogan} placeholder={t("partnerProfile.intro.sloganPlaceholder")} />
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, marginBottom: 28 }}>
-        <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: F }}>예: "함께 성장하는 풀스택 파트너"</span>
+        <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: F }}>{t("partnerProfile.intro.sloganPlaceholder")}</span>
         <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: F }}>{slogan.length}/{MAX_SHORT_BIO}</span>
       </div>
 
-      <IntroFieldLabel text="한줄 자기소개 (배너 부제목)" />
-      <ShortBioInput value={shortBio} onChange={setShortBio} placeholder="배너 카드에 표시될 간단한 소개를 작성해주세요. (200자 이내)" />
+      <IntroFieldLabel text={t("partnerProfile.intro.tagline")} />
+      <ShortBioInput value={shortBio} onChange={setShortBio} placeholder={t("partnerProfile.intro.taglinePlaceholder")} />
       <ShortBioCounter value={shortBio} />
 
-      <IntroFieldLabel text="자기소개" />
-      <IntroTextArea value={intro} onChange={setIntro} placeholder="자신을 자유롭게 소개해 주세요." />
+      <IntroFieldLabel text={t("partnerProfile.intro.about")} />
+      <IntroTextArea value={intro} onChange={setIntro} placeholder={t("partnerProfile.intro.aboutPlaceholder")} />
       <IntroCounter value={intro} />
 
-      <IntroFieldLabel text="주요 업무 분야 및 강점" />
-      <IntroTextArea value={strength} onChange={setStrength} placeholder="업무 스타일과 강점을 들려주세요." />
+      <IntroFieldLabel text={t("partnerProfile.intro.strengths")} />
+      <IntroTextArea value={strength} onChange={setStrength} placeholder={t("partnerProfile.intro.strengthsPlaceholder")} />
       <IntroCounter value={strength} />
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
@@ -312,7 +315,7 @@ function IntroTab() {
             transition: "background 0.3s",
           }}
         >
-          {saving ? "저장 중..." : (saved ? "✓ 저장 완료!" : "설정 저장하기")}
+          {saving ? t("partnerProfile.intro.saving") : (saved ? t("partnerProfile.intro.saved") : t("partnerProfile.intro.saveBtn"))}
         </button>
       </div>
     </div>
@@ -355,6 +358,7 @@ function SkillEditCard({ skill, onSave, onRemove }) {
   const [customTech, setCustomTech] = useState(skill.customTech || "");
   const [proficiency, setProficiency] = useState(skill.proficiency || "");
   const [experience, setExperience] = useState(skill.experience || "");
+  const { t } = useLanguage();
 
   const canSave = (techName || customTech.trim()) && proficiency && experience;
 
@@ -395,28 +399,28 @@ function SkillEditCard({ skill, onSave, onRemove }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: "#475569", fontFamily: F, display: "block", marginBottom: 8 }}>
-            기술명
+            {t("partnerProfile.skills.skillName")}
           </label>
           <select value={techName} onChange={e => setTechName(e.target.value)} style={selectStyle}>
-            <option value="">기술 선택</option>
+            <option value="">{t("partnerProfile.skills.skillDefault")}</option>
             {SKILL_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: "#475569", fontFamily: F, display: "block", marginBottom: 8 }}>
-            숙련도
+            {t("partnerProfile.skills.proficiency")}
           </label>
           <select value={proficiency} onChange={e => setProficiency(e.target.value)} style={selectStyle}>
-            <option value="">숙련도 선택</option>
+            <option value="">{t("partnerProfile.skills.profDefault")}</option>
             {PROFICIENCY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: "#475569", fontFamily: F, display: "block", marginBottom: 8 }}>
-            경험
+            {t("partnerProfile.skills.experience")}
           </label>
           <select value={experience} onChange={e => setExperience(e.target.value)} style={selectStyle}>
-            <option value="">기간 선택</option>
+            <option value="">{t("partnerProfile.skills.expDefault")}</option>
             {EXPERIENCE_OPTIONS.map(ex => <option key={ex} value={ex}>{ex}</option>)}
           </select>
         </div>
@@ -425,13 +429,13 @@ function SkillEditCard({ skill, onSave, onRemove }) {
       {/* 직접 기술명 기입하기 */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, display: "block", marginBottom: 6 }}>
-          직접 기술명 기입하기
+          {t("partnerProfile.skills.customLabel")}
         </label>
         <input
           type="text"
           value={customTech}
           onChange={e => setCustomTech(e.target.value)}
-          placeholder="예: TensorFlow, Solidity 등"
+          placeholder={t("partnerProfile.skills.customPlaceholder")}
           style={{
             width: 260, padding: "9px 14px",
             border: "1.5px solid #E2E8F0", borderRadius: 10,
@@ -463,7 +467,7 @@ function SkillEditCard({ skill, onSave, onRemove }) {
             transition: "all 0.2s",
           }}
         >
-          저장
+          {t("partnerProfile.skills.save")}
         </button>
       </div>
     </div>
@@ -546,6 +550,7 @@ function SavedSkillCard({ skill, onEdit, onDelete }) {
 
 function SkillsTab() {
   const { partnerProfileDetail, updatePartnerProfileDetail, syncProfileDetailToServer } = useStore();
+  const { t } = useLanguage();
   // hydration 시 id 누락/중복 방지 — undefined·null 또는 중복이면 인덱스 기반 보강.
   const initSkills = (partnerProfileDetail?.skills || []).length > 0
     ? (() => {
@@ -589,10 +594,10 @@ function SkillsTab() {
   return (
     <div>
       <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 8px", fontFamily: F }}>
-        보유 기술 관리
+        {t("partnerProfile.skills.title")}
       </h2>
       <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 28px", fontFamily: F, lineHeight: 1.7 }}>
-        귀하의 전문성을 보여줄 수 있는 기술 스택을 추가하고 관리하세요. 각 기술에 대한 숙련도와 경험 기간을 설정할 수 있습니다.
+        {t("partnerProfile.skills.desc")}
       </p>
 
       {/* 기술 카드 목록 */}
@@ -636,7 +641,7 @@ function SkillsTab() {
           e.currentTarget.style.background = "none";
         }}
       >
-        ⊕ 보유기술 추가
+        {t("partnerProfile.skills.addBtn")}
       </button>
 
       {/* 전체 설정 저장하기 */}
@@ -654,14 +659,14 @@ function SkillsTab() {
             transition: "background 0.3s",
           }}
         >
-          {globalSaved ? "✓ 저장 완료!" : "전체 설정 저장하기"}
+          {globalSaved ? t("partnerProfile.skills.savedAll") : t("partnerProfile.skills.saveAllBtn")}
         </button>
       </div>
     </div>
   );
 }
 
-/* ── 경력 탭 ──────────────────────────────────────────────── */
+/* ── 경력 탭 ─────────────────────────────────────────────────────────────────────────────────────── */
 const CAREER_TYPE_OPTIONS = ["정규직", "계약직", "프리랜서", "인턴"];
 const CAREER_ROLE_OPTIONS = ["기획", "디자인", "개발", "운영/PM"];
 const CAREER_LEVEL_OPTIONS = ["신입", "주니어 (1~3년)", "미들 (4~7년)", "시니어 (8년 이상)"];
@@ -1048,6 +1053,7 @@ function CareerSavedCard({ career, onEdit, onDelete }) {
 
 function CareerTab() {
   const { partnerProfileDetail, updatePartnerProfileDetail, syncProfileDetailToServer } = useStore();
+  const { t } = useLanguage();
   // hydration 시 id 누락/중복 방지
   const initCareers = (partnerProfileDetail?.careers || []).length > 0
     ? (() => {
@@ -1093,10 +1099,10 @@ function CareerTab() {
   return (
     <div>
       <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 8px", fontFamily: F }}>
-        경력 관리
+        {t("partnerProfile.career.title")}
       </h2>
       <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 28px", fontFamily: F, lineHeight: 1.7 }}>
-        수행하신 업무 경험을 바탕으로 경력을 추가하고 관리하세요. 각 경력 항목에 속한 주요 프로젝트를 상세히 기록할 수 있습니다.
+        {t("partnerProfile.career.desc")}
       </p>
 
       {careers.map(career => (
@@ -1134,7 +1140,7 @@ function CareerTab() {
         onMouseLeave={e => { e.currentTarget.style.borderColor = "#BFDBFE"; e.currentTarget.style.background = "#F8FBFF"; }}
       >
         <span style={{ fontSize: 26, lineHeight: 1 }}>⊕</span>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>경력 추가</span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>{t("partnerProfile.career.addBtn")}</span>
       </button>
 
       {/* 전체 설정 저장하기 */}
@@ -1152,7 +1158,7 @@ function CareerTab() {
             transition: "background 0.3s",
           }}
         >
-          {globalSaved ? "✓ 저장 완료!" : "전체 설정 저장하기"}
+          {globalSaved ? t("partnerProfile.career.savedAll") : t("partnerProfile.career.saveAllBtn")}
         </button>
       </div>
     </div>
@@ -1471,6 +1477,7 @@ function EducationItem({ item, onEdit, onDelete }) {
 /* ── 학력 탭 ─────────────────────────────────────────────── */
 function EducationTab() {
   const { partnerProfileDetail, updatePartnerProfileDetail, syncProfileDetailToServer } = useStore();
+  const { t } = useLanguage();
   // 인증 이메일이 있으면 같은 학교의 모든 학력에 retroactive 인증 마크 적용
   // (한/영 학교명 alias 매칭 — Korea University ↔ 고려대학교 등)
   const verifiedEmailObj = partnerProfileDetail?.verifiedEmail;
@@ -1581,7 +1588,7 @@ function EducationTab() {
           e.currentTarget.style.color="#64748B";
           e.currentTarget.style.backgroundColor="white";
         }}>
-        <span style={{ fontSize:20 }}>⊕</span> 학력 추가
+        <span style={{ fontSize:20 }}>⊕</span> {t("education.addBtn")}
       </div>
 
       <div style={{ display:"flex", justifyContent:"flex-end", marginTop:20 }}>
@@ -1592,14 +1599,14 @@ function EducationTab() {
               : "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)",
             color:"white", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:F,
             boxShadow:"0 4px 14px rgba(59,130,246,0.35)", transition:"background 0.3s" }}>
-          {saved ? "✓ 저장 완료!" : "전체 설정 저장하기"}
+          {saved ? t("education.savedAll") : t("education.saveAllBtn")}
         </button>
       </div>
     </div>
   );
 }
 
-/* ── 자격증 날짜 픽커 ──────────────────────────────────────── */
+/* ── 자격증 날짜 픽커 ─────────────────────────────────────── */
 function CertDatePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -1925,6 +1932,7 @@ function CertEditCard({ cert, onSave, onCancel }) {
 /* ── 자격증 탭 ───────────────────────────────────────────── */
 function CertificatesTab() {
   const { partnerProfileDetail, updatePartnerProfileDetail, syncProfileDetailToServer } = useStore();
+  const { t } = useLanguage();
   // hydration 시 id 누락/중복 방지
   const initCerts = (partnerProfileDetail?.certifications || []).length > 0
     ? (() => {
@@ -1963,10 +1971,10 @@ function CertificatesTab() {
   return (
     <div>
       <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 8px", fontFamily: F }}>
-        자격증 관리
+        {t("partnerProfile.cert.title")}
       </h2>
       <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 24px", fontFamily: F, lineHeight: 1.7 }}>
-        보유하신 자격증 정보를 입력하여 전문성을 증명하세요. 자격증명, 발급 기관, 취득일 정보를 관리할 수 있습니다.
+        {t("partnerProfile.cert.desc")}
       </p>
 
       {certs.map(cert =>
@@ -2014,7 +2022,7 @@ function CertificatesTab() {
           e.currentTarget.style.background = "white";
         }}
       >
-        <span style={{ fontSize: 18 }}>⊕</span> 자격증 추가
+        <span style={{ fontSize: 18 }}>⊕</span> {t("partnerProfile.cert.addBtn")}
       </button>
 
       {/* 전체 설정 저장하기 */}
@@ -2032,7 +2040,7 @@ function CertificatesTab() {
             transition: "background 0.3s",
           }}
         >
-          {globalSaved ? "✓ 저장 완료!" : "전체 설정 저장하기"}
+          {globalSaved ? t("partnerProfile.cert.savedAll") : t("partnerProfile.cert.saveAllBtn")}
         </button>
       </div>
     </div>
@@ -2461,6 +2469,7 @@ function AwardEditCard({ award, onSave, onCancel }) {
 /* ── 수상이력 탭 ──────────────────────────────────────────── */
 function AwardsTab() {
   const { partnerProfileDetail, updatePartnerProfileDetail, syncProfileDetailToServer } = useStore();
+  const { t } = useLanguage();
   // hydration 시 id 누락/중복 방지
   const initAwards = (partnerProfileDetail?.awards || []).length > 0
     ? (() => {
@@ -2499,10 +2508,10 @@ function AwardsTab() {
   return (
     <div>
       <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 8px", fontFamily: F }}>
-        수상이력 관리
+        {t("partnerProfile.awards.title")}
       </h2>
       <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 24px", fontFamily: F, lineHeight: 1.7 }}>
-        참여하신 경진대회, 공모전 등에서의 수상 내역을 입력하여 귀하의 역량을 돋보이게 하세요. 상훈명, 수여기관, 수상일 정보를 관리할 수 있습니다.
+        {t("partnerProfile.awards.desc")}
       </p>
 
       {awards.map(award =>
@@ -2550,7 +2559,7 @@ function AwardsTab() {
           e.currentTarget.style.background = "white";
         }}
       >
-        <span style={{ fontSize: 18 }}>⊕</span> 수상이력 추가
+        <span style={{ fontSize: 18 }}>⊕</span> {t("partnerProfile.awards.addBtn")}
       </button>
 
       {/* 전체 설정 저장하기 */}
@@ -2568,7 +2577,7 @@ function AwardsTab() {
             transition: "background 0.3s",
           }}
         >
-          {globalSaved ? "✓ 저장 완료!" : "전체 설정 저장하기"}
+          {globalSaved ? t("partnerProfile.awards.savedAll") : t("partnerProfile.awards.saveAllBtn")}
         </button>
       </div>
     </div>
@@ -2577,6 +2586,7 @@ function AwardsTab() {
 
 /* ── 클라이언트 평가 탭 ───────────────────────────────────── */
 function ReviewsTab() {
+  const { t } = useLanguage();
   return (
     <div>
       {/* 타이틀 + 전체 보기 */}
@@ -2593,7 +2603,7 @@ function ReviewsTab() {
           fontSize: 13, fontWeight: 600, color: "#3B82F6", fontFamily: F,
           cursor: "pointer", display: "flex", alignItems: "center", gap: 3,
           marginTop: 4, whiteSpace: "nowrap",
-        }}>전체 평가 보기 &gt;</span>
+        }}>{t("partnerProfile.reviews.viewAll")}</span>
       </div>
 
       {/* 통계 3카드 */}
@@ -2856,6 +2866,7 @@ function ProjectDetailModal({ project, onClose }) {
 function ProjectHistoryCard({ project, onDetail, onDashboard }) {
   const [hov, setHov] = useState(false);
   const [btnHov, setBtnHov] = useState(false);
+  const { t } = useLanguage();
 
   const barColor = project.done
     ? "#22C55E"
@@ -2931,7 +2942,7 @@ function ProjectHistoryCard({ project, onDetail, onDashboard }) {
       {/* 오른쪽: 진행률 + 버튼 */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-          <span style={{ fontSize: 13, color: "#64748B", fontFamily: F, fontWeight: 600 }}>진행률</span>
+          <span style={{ fontSize: 13, color: "#64748B", fontFamily: F, fontWeight: 600 }}>{t("partnerProfile.projects.progress")}</span>
           <span style={{ fontSize: 13, fontWeight: 800, color: project.statusColor, fontFamily: F }}>{project.progress}%</span>
         </div>
         <div style={{ height: 7, borderRadius: 99, background: "#E2E8F0", overflow: "hidden", marginBottom: 16 }}>
@@ -2952,7 +2963,7 @@ function ProjectHistoryCard({ project, onDetail, onDashboard }) {
             transition: "background 0.15s",
           }}
         >
-          {project.done ? "상세 내용 확인" : "진행 대시보드 확인"}
+          {project.done ? t("partnerProfile.projects.completed") : t("partnerProfile.projects.viewDashboard")}
         </button>
       </div>
     </div>
@@ -2961,6 +2972,7 @@ function ProjectHistoryCard({ project, onDetail, onDashboard }) {
 
 function ProjectsTab() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [detailProject, setDetailProject] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2990,23 +3002,23 @@ function ProjectsTab() {
       {detailProject && <ProjectDetailModal project={detailProject} onClose={() => setDetailProject(null)} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div>
-          <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 6px", fontFamily: F }}>프로젝트 히스토리</h2>
+          <h2 style={{ fontSize: 27, fontWeight: 900, background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 6px", fontFamily: F }}>{t("partnerProfile.projects.title")}</h2>
           <p style={{ fontSize: 14, color: "#64748B", margin: 0, fontFamily: F, lineHeight: 1.7 }}>
-            지원·계약·진행·완료한 프로젝트와 내가 등록한 프로젝트가 모두 표시됩니다.
+            {t("partnerProfile.projects.desc")}
           </p>
         </div>
         <span style={{
           fontSize: 13, fontWeight: 600, color: "#3B82F6", fontFamily: F,
           cursor: "pointer", display: "flex", alignItems: "center", gap: 3,
           marginTop: 4, whiteSpace: "nowrap",
-        }}>전체 프로젝트 보기 &gt;</span>
+        }}>{t("partnerProfile.projects.viewAll")}</span>
       </div>
 
       <div style={{ marginTop: 20 }}>
-        {loading && <div style={{ padding: 40, textAlign: "center", color: "#94A3B8", fontFamily: F }}>로딩 중…</div>}
+        {loading && <div style={{ padding: 40, textAlign: "center", color: "#94A3B8", fontFamily: F }}>{t("partnerProfile.projects.loading")}</div>}
         {!loading && items.length === 0 && (
           <div style={{ padding: 40, textAlign: "center", color: "#94A3B8", fontFamily: F }}>
-            아직 진행한 프로젝트가 없습니다.
+            {t("partnerProfile.projects.noHistory")}
           </div>
         )}
         {!loading && items.map(project => (
@@ -3026,6 +3038,7 @@ const MOCK_PORTFOLIO_EDIT = [
 ];
 function PortfolioEditTab() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [showAll, setShowAll] = useState(false);
   const items = showAll ? MOCK_PORTFOLIO_EDIT : MOCK_PORTFOLIO_EDIT.slice(0, 3);
   return (
@@ -3035,8 +3048,8 @@ function PortfolioEditTab() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#3B82F6", flexShrink: 0 }}>📋</div>
           <div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1E293B", margin: "0 0 2px", fontFamily: F }}>포트폴리오</h2>
-            <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: F }}>{MOCK_PORTFOLIO_EDIT.length}건 등록됨</span>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1E293B", margin: "0 0 2px", fontFamily: F }}>{t("partnerProfile.portfolio.title")}</h2>
+            <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: F }}>{t("partnerProfile.portfolio.added").replace("{n}", MOCK_PORTFOLIO_EDIT.length)}</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -3046,7 +3059,7 @@ function PortfolioEditTab() {
             onMouseEnter={e => e.currentTarget.style.background = "#BFDBFE"}
             onMouseLeave={e => e.currentTarget.style.background = "#DBEAFE"}
           >
-            {showAll ? "접기 ∧" : "전체 보기 ∨"}
+            {showAll ? t("partnerProfile.portfolio.collapse") : t("partnerProfile.portfolio.showAll")}
           </button>
         </div>
       </div>
@@ -3075,15 +3088,15 @@ function PortfolioEditTab() {
       {/* 안내 메시지 */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 20px", background: "#F8FAFC", borderRadius: 16, border: "1.5px dashed #BFDBFE" }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>📝</div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", fontFamily: F, marginBottom: 8 }}>포트폴리오를 추가하거나 수정하려면?</div>
-        <div style={{ fontSize: 13, color: "#64748B", fontFamily: F, marginBottom: 16, textAlign: "center", lineHeight: 1.6 }}>'포트폴리오 관리 이동' 버튼을 눌러 대시보드에서 다양한 포트폴리오를 관리하세요.</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1E293B", fontFamily: F, marginBottom: 8 }}>{t("partnerProfile.portfolio.hint")}</div>
+        <div style={{ fontSize: 13, color: "#64748B", fontFamily: F, marginBottom: 16, textAlign: "center", lineHeight: 1.6 }}>{t("partnerProfile.portfolio.hintDesc")}</div>
         <button
           onClick={() => navigate("/partner_dashboard?tab=portfolio_add")}
           style={{ background: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)", color: "white", border: "none", borderRadius: 10, padding: "11px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F, transition: "opacity 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
           onMouseLeave={e => e.currentTarget.style.opacity = "1"}
         >
-          포트폴리오 관리 이동
+          {t("partnerProfile.portfolio.navBtn")}
         </button>
       </div>
     </div>
@@ -3091,17 +3104,15 @@ function PortfolioEditTab() {
 }
 
 /* ── 준비 중 탭 ──────────────────────────────────────────── */
-function ComingSoonTab({ label }) {
+function ComingSoonTab() {
+  const { t } = useLanguage();
   return (
     <div style={{
       display: "flex", flexDirection: "column", alignItems: "center",
       justifyContent: "center", padding: "80px 20px", color: "#94A3B8",
     }}>
       <div style={{ fontSize: 44, marginBottom: 18 }}>🚧</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: "#64748B", fontFamily: F, marginBottom: 8 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 14, color: "#94A3B8", fontFamily: F }}>해당 탭은 준비 중입니다.</div>
+      <div style={{ fontSize: 14, color: "#94A3B8", fontFamily: F }}>{t("partnerProfile.comingSoon")}</div>
     </div>
   );
 }
@@ -3111,6 +3122,7 @@ function PartnerProfile() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { partnerProfile, partnerDropdowns, setPartnerDropdown, userRole, setPartnerProfileDetail } = useStore();
+  const { t } = useLanguage();
   const activeTab = searchParams.get("tab") || "profile_menu";
   const setActiveTab = (key) => setSearchParams({ tab: key }, { replace: true });
 
@@ -3133,14 +3145,37 @@ function PartnerProfile() {
   // 역할별 탭 목록: 클라이언트는 "이력" 탭 추가, 탭명 변경
   const DISPLAY_TABS = isClientRole
     ? TABS
-        .map(t => ({
-          ...t,
-          label: t.key === "intro" ? "클라이언트로서 자기소개"
-               : t.key === "reviews" ? "파트너 평가"
-               : t.label,
+        .map(tab => ({
+          ...tab,
+          label: tab.key === "intro" ? t("partnerProfile.tabs.clientIntro")
+               : tab.key === "reviews" ? t("partnerProfile.tabs.clientReview")
+               : ({
+                   profile_menu: t("partnerProfile.menu.title"),
+                   skills: t("partnerProfile.menu.skills"),
+                   career: t("partnerProfile.menu.career"),
+                   education: t("partnerProfile.menu.education"),
+                   certificates: t("partnerProfile.menu.certificate"),
+                   awards: t("partnerProfile.menu.award"),
+                   portfolio: t("partnerProfile.menu.portfolio"),
+                   projects: t("partnerProfile.menu.ongoingProject"),
+                 }[tab.key] || tab.label),
         }))
-        .flatMap(t => t.key === "career" ? [{ key: "history", label: "이력" }, t] : [t])
-    : TABS;
+        .flatMap(tab => tab.key === "career" ? [{ key: "history", label: t("partnerProfile.tabs.history") }, tab] : [tab])
+    : TABS.map(tab => ({
+        ...tab,
+        label: ({
+          profile_menu: t("partnerProfile.menu.title"),
+          intro: t("partnerProfile.menu.intro"),
+          skills: t("partnerProfile.menu.skills"),
+          career: t("partnerProfile.menu.career"),
+          education: t("partnerProfile.menu.education"),
+          certificates: t("partnerProfile.menu.certificate"),
+          awards: t("partnerProfile.menu.award"),
+          portfolio: t("partnerProfile.menu.portfolio"),
+          reviews: t("partnerProfile.menu.review"),
+          projects: t("partnerProfile.menu.ongoingProject"),
+        }[tab.key] || tab.label),
+      }));
 
   // 회원가입 시 선택한 jobCategory를 category 드롭다운 기본값으로 1회 초기화
   useEffect(() => {
@@ -3172,10 +3207,10 @@ function PartnerProfile() {
           <img src={aiBird} alt="AI 도움" style={{ width: 72, height: 72, objectFit: "contain", flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#1E293B", fontFamily: F, marginBottom: 4 }}>
-              AI가 프로필 내용 작성을 도와드릴게요.
+              {t("partnerProfile.ai.title")}
             </div>
             <div style={{ fontSize: 13, color: "#64748B", fontFamily: F }}>
-              작성된 내용을 바탕으로 더 매력적인 포트폴리오 문구를 생성합니다.
+              {t("partnerProfile.ai.desc")}
             </div>
           </div>
           <button
@@ -3198,7 +3233,7 @@ function PartnerProfile() {
               e.currentTarget.style.boxShadow="0 4px 12px rgba(99,102,241,0.25)";
             }}
           >
-            내용 작성 도움받기
+            {t("partnerProfile.ai.btn")}
           </button>
         </div>
 
@@ -3264,7 +3299,7 @@ function PartnerProfile() {
               ? <ProjectsTab />
               : activeTab === "portfolio_edit"
               ? <PortfolioEditTab />
-              : <ComingSoonTab label={DISPLAY_TABS.find(t => t.key === activeTab)?.label} />
+              : <ComingSoonTab />
             }
           </div>
         </div>

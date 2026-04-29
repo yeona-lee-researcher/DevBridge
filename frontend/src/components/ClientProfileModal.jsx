@@ -5,6 +5,9 @@ import heroCheck from "../assets/hero_check.png";
 import heroStudent from "../assets/hero_student.png";
 import heroMoney from "../assets/hero_money.png";
 import heroDefault from "../assets/hero_default.png";
+import { profileApi } from "../api/profile.api";
+import { portfolioApi } from "../api/portfolio.api";
+import { reviewsApi } from "../api/reviews.api";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -95,15 +98,10 @@ export default function ClientProfileModal({ client, partner, onClose, onPropose
     let cancelled = false;
     (async () => {
       try {
-        const [{ profileApi }, { portfolioApi }, reviewsMod] = await Promise.all([
-          import("../api/profile.api"),
-          import("../api/portfolio.api"),
-          import("../api/reviews.api"),
-        ]);
         const detailP = profileApi.getDetailByUsername(username).catch(() => null);
         const portfolioP = portfolioApi.byUsername(username).catch(() => []);
         const reviewsP = partnerProfileId
-          ? reviewsMod.reviewsApi.byPartner(partnerProfileId).catch(() => [])
+          ? reviewsApi.byPartner(partnerProfileId).catch(() => [])
           : Promise.resolve([]);
         const [detail, portfolio, reviews] = await Promise.all([detailP, portfolioP, reviewsP]);
         if (cancelled) return;

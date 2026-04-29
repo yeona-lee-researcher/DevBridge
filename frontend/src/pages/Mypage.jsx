@@ -9,6 +9,7 @@ import clientDefault from "../assets/hero_check.png";
 import { bankApi } from "../api/bank.api";
 import { profileApi } from "../api/profile.api";
 import { paymentMethodsApi } from "../api/paymentMethods.api";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const BASE_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -56,6 +57,7 @@ function Toast({ msg, onClose }) {
 
 /* ── 달력 팝업 ── */
 function DatePicker({ value, onChange, disabled }) {
+  const { t, lang } = useLanguage();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState("day"); // "day" | "year" | "month"
   const ref = useRef(null);
@@ -86,8 +88,8 @@ function DatePicker({ value, onChange, disabled }) {
 
   const dim = (y, m) => new Date(y, m + 1, 0).getDate();
   const fd  = new Date(viewYear, viewMonth, 1).getDay();
-  const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
-  const DAYS   = ["일","월","화","수","목","금","토"];
+  const MONTHS = t("myPage.calendar.months");
+  const DAYS   = t("myPage.calendar.weekdays");
   const total  = Math.ceil((fd + dim(viewYear, viewMonth)) / 7) * 7;
 
   const YEAR_START = 1940;
@@ -131,7 +133,7 @@ function DatePicker({ value, onChange, disabled }) {
                 onClick={() => setView("year")}
                 style={{ fontWeight:700, fontSize:13, color:"#111827", cursor:"pointer",
                   display:"flex", alignItems:"center", gap:4, userSelect:"none" }}>
-                {viewYear}년 {MONTHS[viewMonth]}
+                {lang === "en" ? `${MONTHS[viewMonth]} ${viewYear}` : lang === "zh" ? `${viewYear}年 ${MONTHS[viewMonth]}` : `${viewYear}년 ${MONTHS[viewMonth]}`}
                 <span style={{ fontSize:11, color:"#6B7280" }}>▼</span>
               </span>
               <button onClick={nextM} style={{ background:"none",border:"none",fontSize:17,cursor:"pointer",color:"#374151",padding:"2px 6px" }}>↓</button>
@@ -162,19 +164,19 @@ function DatePicker({ value, onChange, disabled }) {
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:10, borderTop:"1px solid #F3F4F6", paddingTop:8 }}>
               <button onClick={()=>{onChange("");setOpen(false);}}
-                style={{ background:"none",border:"none",fontSize:12,color:"#EF4444",cursor:"pointer",fontFamily:BASE_FONT }}>삭제</button>
+                style={{ background:"none",border:"none",fontSize:12,color:"#EF4444",cursor:"pointer",fontFamily:BASE_FONT }}>{t("myPage.calendar.delete")}</button>
               <button onClick={()=>{
-                const t=new Date(); setViewYear(t.getFullYear()); setViewMonth(t.getMonth());
-                const mm=String(t.getMonth()+1).padStart(2,"0"), dd=String(t.getDate()).padStart(2,"0");
-                onChange(`${t.getFullYear()}-${mm}-${dd}`); setOpen(false);
-              }} style={{ background:"none",border:"none",fontSize:12,color:"#3B82F6",cursor:"pointer",fontFamily:BASE_FONT }}>오늘</button>
+                const now=new Date(); setViewYear(now.getFullYear()); setViewMonth(now.getMonth());
+                const mm=String(now.getMonth()+1).padStart(2,"0"), dd=String(now.getDate()).padStart(2,"0");
+                onChange(`${now.getFullYear()}-${mm}-${dd}`); setOpen(false);
+              }} style={{ background:"none",border:"none",fontSize:12,color:"#3B82F6",cursor:"pointer",fontFamily:BASE_FONT }}>{t("myPage.calendar.today")}</button>
             </div>
           </>)}
 
           {/* ── 년도 선택 뷰 ── */}
           {view === "year" && (<>
             <div style={{ fontWeight:700, fontSize:13, color:"#111827", textAlign:"center", marginBottom:8 }}>
-              년도 선택
+              {t("myPage.calendar.yearSelect")}
             </div>
             <div ref={yearListRef} style={{ height:220, overflowY:"auto", borderRadius:8,
               border:"1px solid #F3F4F6" }}>
@@ -187,7 +189,7 @@ function DatePicker({ value, onChange, disabled }) {
                       color: isCur?"white":"#111827", transition:"background 0.1s" }}
                     onMouseEnter={e=>{ if(!isCur) e.currentTarget.style.backgroundColor="#EFF6FF"; }}
                     onMouseLeave={e=>{ if(!isCur) e.currentTarget.style.backgroundColor="transparent"; }}>
-                    {y}년
+                    {lang === "en" ? `${y}` : lang === "zh" ? `${y}年` : `${y}년`}
                   </div>
                 );
               })}
@@ -195,7 +197,7 @@ function DatePicker({ value, onChange, disabled }) {
             <button onClick={() => setView("day")}
               style={{ marginTop:8, background:"none",border:"none",fontSize:12,color:"#6B7280",
                 cursor:"pointer",fontFamily:BASE_FONT,padding:"4px 0" }}>
-              ← 달력으로
+              {t("myPage.calendar.backToCalendar")}
             </button>
           </>)}
 
@@ -207,7 +209,7 @@ function DatePicker({ value, onChange, disabled }) {
                 marginBottom:12, cursor:"pointer", display:"flex", alignItems:"center",
                 justifyContent:"center", gap:4, userSelect:"none" }}>
               <span style={{ fontSize:11, color:"#6B7280" }}>◀</span>
-              {viewYear}년
+              {lang === "en" ? `${viewYear}` : lang === "zh" ? `${viewYear}年` : `${viewYear}년`}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6 }}>
               {MONTHS.map((m, i) => {
@@ -236,6 +238,7 @@ function DatePicker({ value, onChange, disabled }) {
 
 /* ── 계좌 등록 카드 ── */
 function BankCard({ onToast }) {
+  const { t } = useLanguage();
   const [bank, setBank]             = useState("");
   const [accountNum, setAccountNum] = useState("");
   const [owner, setOwner]           = useState("");
@@ -262,12 +265,12 @@ function BankCard({ onToast }) {
 
   const handleVerify = async () => {
     if (!bank || !accountNum || !owner) {
-      onToast("은행, 계좌번호, 예금주를 모두 입력해 주세요."); return;
+      onToast(t("myPage.bankAccount.toasts.fillAll")); return;
     }
     // JWT는 HttpOnly 쿠키로 이전됐기 때문에 localStorage.accessToken 가드는 더이상 무효.
     // 로그인 여부는 dbId(비민감 식별자)로 확인하고, 토큰 만료 등 실제 인증 실패는 백엔드 401로 잡는다.
     if (!localStorage.getItem("dbId")) {
-      onToast("로그인이 필요합니다. 로그인 후 다시 시도해 주세요."); return;
+      onToast(t("myPage.bankAccount.toasts.loginRequired")); return;
     }
     setLoading(true);
     try {
@@ -276,9 +279,9 @@ function BankCard({ onToast }) {
       setAuthShown(true);
     } catch (err) {
       if (err?.response?.status === 401) {
-        onToast("로그인 세션이 만료됐어요. 다시 로그인 해주세요.");
+        onToast(t("myPage.bankAccount.toasts.sessionExpired"));
       } else {
-        const msg = err?.response?.data?.message || "인증번호 발급에 실패했습니다.";
+        const msg = err?.response?.data?.message || t("myPage.bankAccount.toasts.issueFailed") || "Failed to issue verification code.";
         onToast(msg);
       }
     } finally {
@@ -291,14 +294,14 @@ function BankCard({ onToast }) {
     setLoading(true);
     try {
       await bankApi.verifyCode(authCode, bank, accountNum, owner);
-      onToast("인증이 완료되었습니다!");
+      onToast(t("myPage.bankAccount.toasts.verified"));
       setAuthDone(true);
       setAuthShown(false);
     } catch (err) {
       if (err?.response?.status === 401) {
-        onToast("로그인 세션이 만료됐어요. 다시 로그인 해주세요.");
+        onToast(t("myPage.bankAccount.toasts.sessionExpired"));
       } else {
-        const msg = err?.response?.data?.message || "인증번호가 일치하지 않습니다.";
+        const msg = err?.response?.data?.message || t("myPage.bankAccount.toasts.codeMismatch") || "Code mismatch.";
         onToast(msg);
       }
     } finally {
@@ -307,9 +310,9 @@ function BankCard({ onToast }) {
   };
 
   const handleConnect = () => {
-    if (!authDone) { onToast("계좌 인증을 먼저 완료해 주세요."); return; }
+    if (!authDone) { onToast(t("myPage.bankAccount.toasts.verifyFirst")); return; }
     setConnected(true);
-    onToast("계좌가 등록되었습니다!");
+    onToast(t("myPage.bankAccount.toasts.registered"));
   };
 
   return (
@@ -319,18 +322,18 @@ function BankCard({ onToast }) {
       padding:"28px 28px 24px",
     }}>
       <h2 style={{ fontSize:22, fontWeight:800, color:"#111827", marginBottom:26, fontFamily:BASE_FONT }}>
-        계좌 등록
+        {t("myPage.bankAccount.title")}
       </h2>
 
       {/* 은행 선택 */}
       <div style={{ marginBottom:20 }}>
-        <label style={LABEL_STYLE}>은행 선택 <span style={{ color:"#9CA3AF", fontWeight:400 }}>(Bank Selector)</span></label>
+        <label style={LABEL_STYLE}>{t("myPage.bankAccount.bankSelect")}</label>
         <div style={{ position:"relative" }}>
           <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:20, color:"#60A5FA" }}>🏦</span>
           <select value={bank} onChange={e=>setBank(e.target.value)}
             style={{ ...FIELD_STYLE, paddingLeft:44, paddingRight:40, appearance:"none", cursor:"pointer",
               color: bank?"#111827":"#9CA3AF" }}>
-            <option value="">은행을 선택해 주세요</option>
+            <option value="">{t("myPage.bankAccount.bankDefault")}</option>
             {BANKS.map(b=><option key={b} value={b}>{b}</option>)}
           </select>
           <ChevronDown size={16} color="#9CA3AF"
@@ -340,18 +343,18 @@ function BankCard({ onToast }) {
 
       {/* 계좌번호 */}
       <div style={{ marginBottom:20 }}>
-        <label style={LABEL_STYLE}>계좌번호 <span style={{ color:"#9CA3AF", fontWeight:400 }}>(Account Number)</span></label>
+        <label style={LABEL_STYLE}>{t("myPage.bankAccount.accountNumber")}</label>
         <input value={accountNum} onChange={e=>setAccountNum(e.target.value.replace(/\D/g,""))}
-          placeholder="숫자만 입력해 주세요" inputMode="numeric"
+          placeholder={t("myPage.bankAccount.accountPlaceholder")} inputMode="numeric"
           style={{ ...FIELD_STYLE, backgroundColor:"#F9FAFB" }} />
       </div>
 
       {/* 예금주 확인 */}
       <div style={{ marginBottom: authShown ? 14 : 20 }}>
-        <label style={LABEL_STYLE}>예금주 확인 <span style={{ color:"#9CA3AF", fontWeight:400 }}>(Owner Verification)</span></label>
+        <label style={LABEL_STYLE}>{t("myPage.bankAccount.holderVerify")}</label>
         <div style={{ display:"flex", gap:10 }}>
           <input value={owner} onChange={e=>setOwner(e.target.value)}
-            placeholder={authDone ? "인증 완료" : "예금주 이름"}
+            placeholder={authDone ? t("myPage.bankAccount.verifiedPlaceholder") : t("myPage.bankAccount.holderPlaceholder")}
             readOnly={authDone}
             style={{ ...FIELD_STYLE, flex:1, backgroundColor:"#F9FAFB" }} />
           {!authDone && (
@@ -363,11 +366,11 @@ function BankCard({ onToast }) {
                 cursor: loading ? "not-allowed" : "pointer", fontFamily:BASE_FONT,
                 boxShadow:"0 2px 10px rgba(99,102,241,0.25)",
                 opacity: loading ? 0.7 : 1,
-              }}>{loading ? "발급 중..." : "확인"}</button>
+              }}>{loading ? t("myPage.bankAccount.issuing") : t("myPage.bankAccount.verifyBtn")}</button>
           )}
           {authDone && (
             <div style={{ display:"flex", alignItems:"center", gap:6, color:"#10B981", fontWeight:700, fontSize:14, fontFamily:BASE_FONT, flexShrink:0 }}>
-              <CheckCircle2 size={18} /> 인증완료
+              <CheckCircle2 size={18} /> {t("myPage.bankAccount.verified")}
             </div>
           )}
         </div>
@@ -376,10 +379,10 @@ function BankCard({ onToast }) {
       {/* 인증번호 입력 (확인 후 표시) */}
       {authShown && (
         <div style={{ marginBottom:20 }}>
-          <label style={LABEL_STYLE}>인증번호</label>
+          <label style={LABEL_STYLE}>{t("myPage.bankAccount.codeLabel")}</label>
           <div style={{ display:"flex", gap:10 }}>
             <input value={authCode} onChange={e=>setAuthCode(e.target.value)}
-              placeholder="인증번호를 입력하세요" inputMode="numeric"
+              placeholder={t("myPage.bankAccount.codePlaceholder")} inputMode="numeric"
               style={{ ...FIELD_STYLE, flex:1 }} />
             <button onClick={handleAuthConfirm} disabled={loading}
               style={{
@@ -389,7 +392,7 @@ function BankCard({ onToast }) {
                 cursor: loading ? "not-allowed" : "pointer", fontFamily:BASE_FONT,
                 boxShadow:"0 2px 10px rgba(99,102,241,0.25)",
                 opacity: loading ? 0.7 : 1,
-              }}>{loading ? "확인 중..." : "인증확인"}</button>
+              }}>{loading ? t("myPage.bankAccount.confirmingBtn") : t("myPage.bankAccount.confirmBtn")}</button>
           </div>
         </div>
       )}
@@ -403,7 +406,7 @@ function BankCard({ onToast }) {
           display:"flex", alignItems:"center", justifyContent:"center", gap:10,
           marginBottom:16, boxSizing:"border-box",
         }}>
-          <CheckCircle2 size={20} /> 계좌 등록 완료
+          <CheckCircle2 size={20} /> {t("myPage.bankAccount.registeredLabel")}
         </div>
       ) : (
         <button onClick={handleConnect}
@@ -419,7 +422,7 @@ function BankCard({ onToast }) {
           onMouseEnter={e=>{ if(authDone) e.currentTarget.style.opacity="0.9"; }}
           onMouseLeave={e=>e.currentTarget.style.opacity="1"}
         >
-          연결하기 →
+          {t("myPage.bankAccount.connectBtn")}
         </button>
       )}
 
@@ -428,7 +431,7 @@ function BankCard({ onToast }) {
         borderRadius:12, border:"1px solid #DBEAFE" }}>
         <Info size={16} color="#60A5FA" style={{ flexShrink:0, marginTop:1 }} />
         <p style={{ margin:0, fontSize:13, color:"#374151", lineHeight:1.6, fontFamily:BASE_FONT }}>
-          입금자명에 표시된 숫자 3자리를 입력하여 본인 명의 계좌를 인증해 주세요.
+          {t("myPage.bankAccount.instruction")}
         </p>
       </div>
     </div>
@@ -437,6 +440,7 @@ function BankCard({ onToast }) {
 
 /* ── 카드 결제수단 카드 (Client + Partner 공통) ── */
 function PaymentMethodsCard({ onToast }) {
+  const { t } = useLanguage();
   const [list, setList]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -451,13 +455,13 @@ function PaymentMethodsCard({ onToast }) {
   useEffect(() => { reload(); }, []);
 
   const handleSetDefault = async (id) => {
-    try { await paymentMethodsApi.setDefault(id); reload(); onToast?.("기본 카드가 변경되었습니다."); }
-    catch (e) { onToast?.(e?.response?.data?.message || "변경 실패"); }
+    try { await paymentMethodsApi.setDefault(id); reload(); onToast?.(t("myPage.card.toasts.defaultChanged")); }
+    catch (e) { onToast?.(e?.response?.data?.message || t("myPage.card.toasts.defaultChanged")); }
   };
   const handleRemove = async (id) => {
-    if (!window.confirm("이 카드를 삭제할까요?")) return;
-    try { await paymentMethodsApi.remove(id); reload(); onToast?.("카드가 삭제되었습니다."); }
-    catch (e) { onToast?.(e?.response?.data?.message || "삭제 실패"); }
+    if (!window.confirm(t("myPage.card.delete") + "?")) return;
+    try { await paymentMethodsApi.remove(id); reload(); onToast?.(t("myPage.card.toasts.deleted")); }
+    catch (e) { onToast?.(e?.response?.data?.message || t("myPage.card.toasts.deleted")); }
   };
 
   return (
@@ -469,15 +473,15 @@ function PaymentMethodsCard({ onToast }) {
         fontSize:20, fontWeight:800, color:"#1F2937", marginBottom:6,
         display:"flex", alignItems:"center", gap:10, fontFamily:BASE_FONT,
       }}>
-        💳 결제 카드 관리
+        {t("myPage.card.title")}
       </h2>
       <p style={{ marginTop:0, marginBottom:20, fontSize:13, color:"#6B7280", fontFamily:BASE_FONT }}>
-        진행 프로젝트 에스크로 결제에 사용됩니다. (PCI 마스킹 — 카드 끝 4자리만 보관)
+        {t("myPage.card.desc")}
       </p>
 
       {loading && (
         <div style={{ padding:24, textAlign:"center", color:"#9CA3AF", fontFamily:BASE_FONT }}>
-          불러오는 중…
+          {t("myPage.card.loading")}
         </div>
       )}
 
@@ -486,7 +490,7 @@ function PaymentMethodsCard({ onToast }) {
           padding:"28px 16px", textAlign:"center", color:"#6B7280",
           background:"#F9FAFB", borderRadius:12, marginBottom:16, fontFamily:BASE_FONT, fontSize:14,
         }}>
-          등록된 카드가 없습니다.
+          {t("myPage.card.noCard")}
         </div>
       )}
 
@@ -505,7 +509,7 @@ function PaymentMethodsCard({ onToast }) {
                 <span style={{
                   marginLeft:8, padding:"2px 8px", borderRadius:8,
                   background:"#3B82F6", color:"white", fontSize:11, fontWeight:700,
-                }}>기본</span>
+                }}>{t("myPage.card.defaultBadge")}</span>
               )}
             </div>
             <div style={{ fontSize:12, color:"#6B7280", marginTop:3 }}>
@@ -519,13 +523,13 @@ function PaymentMethodsCard({ onToast }) {
                 padding:"6px 12px", borderRadius:8, border:"1px solid #E5E7EB",
                 background:"white", fontSize:12, color:"#374151", fontWeight:600,
                 cursor:"pointer", fontFamily:BASE_FONT,
-              }}>기본 설정</button>
+              }}>{t("myPage.card.setDefault")}</button>
             )}
             <button onClick={() => handleRemove(c.id)} style={{
               padding:"6px 12px", borderRadius:8, border:"1px solid #FCA5A5",
               background:"white", fontSize:12, color:"#DC2626", fontWeight:600,
               cursor:"pointer", fontFamily:BASE_FONT,
-            }}>삭제</button>
+            }}>{t("myPage.card.delete")}</button>
           </div>
         </div>
       ))}
@@ -536,13 +540,13 @@ function PaymentMethodsCard({ onToast }) {
         fontSize:14, fontWeight:700, color:"#2563EB",
         cursor:"pointer", fontFamily:BASE_FONT,
       }}>
-        + 새 카드 등록
+        {t("myPage.card.addCard")}
       </button>
 
       {showAdd && (
         <CardRegisterModal
           onClose={() => setShowAdd(false)}
-          onSuccess={(created) => { setShowAdd(false); reload(); onToast?.("✓ 카드가 등록되었습니다."); }}
+          onSuccess={(created) => { setShowAdd(false); reload(); onToast?.(t("myPage.card.toasts.registered")); }}
           onToast={onToast}
         />
       )}
@@ -552,6 +556,7 @@ function PaymentMethodsCard({ onToast }) {
 
 /* ── 카드 등록 모달 ── */
 function CardRegisterModal({ onClose, onSuccess, onToast }) {
+  const { t } = useLanguage();
   const [num, setNum]           = useState("");      // "1234 5678 9012 3456"
   const [holder, setHolder]     = useState("");
   const [exp, setExp]           = useState("");      // "MM/YY"
@@ -581,14 +586,14 @@ function CardRegisterModal({ onClose, onSuccess, onToast }) {
     const digits = num.replace(/\D/g,"");
     const expDigits = exp.replace(/\D/g,"");
     if (digits.length < 13 || digits.length > 19)
-                                   return onToast?.("카드 번호는 13~19자리여야 합니다.");
-    if (!holder.trim())            return onToast?.("카드 소유자명을 입력해 주세요.");
-    if (expDigits.length !== 4)    return onToast?.("유효기간을 MM/YY 형식으로 입력해 주세요.");
-    if (cvc.length < 3)            return onToast?.("CVC를 입력해 주세요.");
+                                   return onToast?.(t("myPage.card.toasts.invalidNumber"));
+    if (!holder.trim())            return onToast?.(t("myPage.card.toasts.holderRequired"));
+    if (expDigits.length !== 4)    return onToast?.(t("myPage.card.toasts.expiryFormat"));
+    if (cvc.length < 3)            return onToast?.(t("myPage.card.toasts.cvcRequired"));
     const month = parseInt(expDigits.slice(0,2), 10);
     const yr2   = parseInt(expDigits.slice(2), 10);
     const year  = 2000 + yr2;
-    if (month < 1 || month > 12)   return onToast?.("유효기간 월(MM)이 올바르지 않습니다.");
+    if (month < 1 || month > 12)   return onToast?.(t("myPage.card.toasts.invalidMonth"));
 
     setSubmitting(true);
     try {
@@ -599,7 +604,7 @@ function CardRegisterModal({ onClose, onSuccess, onToast }) {
       });
       onSuccess?.(created);
     } catch (e) {
-      onToast?.(e?.response?.data?.message || "카드 등록에 실패했습니다.");
+      onToast?.(e?.response?.data?.message || t("myPage.card.toasts.registerFail"));
     } finally {
       setSubmitting(false);
     }
@@ -615,25 +620,25 @@ function CardRegisterModal({ onClose, onSuccess, onToast }) {
         boxShadow:"0 20px 60px rgba(0,0,0,0.3)",
       }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ margin:0, marginBottom:6, fontSize:20, fontWeight:800, color:"#1F2937" }}>
-          새 카드 등록
+          {t("myPage.card.modal.title")}
         </h3>
         <p style={{ margin:0, marginBottom:20, fontSize:12, color:"#9CA3AF" }}>
-          카드 정보는 PCI 규정에 따라 끝 4자리/브랜드만 저장됩니다.
+          {t("myPage.card.modal.desc")}
         </p>
 
-        <label style={LABEL_STYLE}>카드 번호</label>
+        <label style={LABEL_STYLE}>{t("myPage.card.modal.cardNumber")}</label>
         <input value={num} onChange={(e) => setNum(formatNum(e.target.value))}
           placeholder="1234 5678 9012 3456" inputMode="numeric"
           style={{ ...FIELD_STYLE, marginBottom:14 }} />
 
-        <label style={LABEL_STYLE}>카드 소유자명</label>
+        <label style={LABEL_STYLE}>{t("myPage.card.modal.holderName")}</label>
         <input value={holder} onChange={(e) => setHolder(e.target.value.toUpperCase())}
           placeholder="HONG GIL DONG"
           style={{ ...FIELD_STYLE, marginBottom:14 }} />
 
         <div style={{ display:"flex", gap:12, marginBottom:14 }}>
           <div style={{ flex:1 }}>
-            <label style={LABEL_STYLE}>유효기간</label>
+            <label style={LABEL_STYLE}>{t("myPage.card.modal.expiry")}</label>
             <input value={exp} onChange={(e) => setExp(formatExp(e.target.value))}
               placeholder="MM/YY" inputMode="numeric" style={FIELD_STYLE} />
           </div>
@@ -644,7 +649,7 @@ function CardRegisterModal({ onClose, onSuccess, onToast }) {
           </div>
         </div>
 
-        <label style={LABEL_STYLE}>별칭 (선택)</label>
+        <label style={LABEL_STYLE}>{t("myPage.card.modal.alias")}</label>
         <input value={nickname} onChange={(e) => setNickname(e.target.value)}
           placeholder="예: 메인 카드"
           style={{ ...FIELD_STYLE, marginBottom:24 }} />
@@ -654,14 +659,14 @@ function CardRegisterModal({ onClose, onSuccess, onToast }) {
             flex:1, padding:"14px 0", borderRadius:12, border:"1px solid #E5E7EB",
             background:"white", color:"#374151", fontSize:14, fontWeight:600,
             cursor: submitting ? "not-allowed" : "pointer", fontFamily:BASE_FONT,
-          }}>취소</button>
+          }}>{t("myPage.card.modal.cancel")}</button>
           <button onClick={handleSubmit} disabled={submitting} style={{
             flex:1.4, padding:"14px 0", borderRadius:12, border:"none",
             background:"linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)",
             color:"white", fontSize:14, fontWeight:700,
             cursor: submitting ? "not-allowed" : "pointer", fontFamily:BASE_FONT,
             opacity: submitting ? 0.7 : 1,
-          }}>{submitting ? "등록 중..." : "카드 등록"}</button>
+          }}>{submitting ? t("myPage.card.modal.registering") : t("myPage.card.modal.register")}</button>
         </div>
       </div>
     </div>
@@ -671,6 +676,7 @@ function CardRegisterModal({ onClose, onSuccess, onToast }) {
 
 /* ── 입학/졸업 년월 선택 픽커 ── */
 function YearMonthPicker({ value, onChange, disabled }) {
+  const { t, lang } = useLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const yearListRef = useRef(null);
@@ -697,13 +703,17 @@ function YearMonthPicker({ value, onChange, disabled }) {
     }
   }, [open, viewYear]);
 
-  const display  = selYear && selMonth ? `${selYear}년 ${String(selMonth).padStart(2,"0")}월` : "";
+  const display  = selYear && selMonth
+    ? lang === "en" ? `${t("myPage.calendar.months")[selMonth-1]} ${selYear}`
+    : lang === "zh" ? `${selYear}年 ${String(selMonth).padStart(2,"0")}月`
+    : `${selYear}년 ${String(selMonth).padStart(2,"0")}월`
+    : "";
   const pickMonth = (m) => { onChange(`${viewYear}-${String(m).padStart(2,"0")}`); setOpen(false); };
 
   return (
     <div ref={ref} style={{ position:"relative" }}>
       <div style={{ position:"relative" }}>
-        <input readOnly value={display} placeholder="----년 --월"
+        <input readOnly value={display} placeholder={lang === "en" ? "---- --" : lang === "zh" ? "----年 --月" : "----년 --월"}
           onClick={() => !disabled && setOpen(o=>!o)}
           style={{ ...FIELD_STYLE, cursor:disabled?"default":"pointer",
             backgroundColor:disabled?"#F9FAFB":"white", paddingRight:44 }} />
@@ -758,13 +768,13 @@ function YearMonthPicker({ value, onChange, disabled }) {
             borderTop:"1px solid #F3F4F6", paddingTop:8 }}>
             <button onClick={() => { onChange(""); setOpen(false); }}
               style={{ background:"none", border:"none", fontSize:12, color:"#EF4444",
-                cursor:"pointer", fontFamily:BASE_FONT }}>삭제</button>
+                cursor:"pointer", fontFamily:BASE_FONT }}>{t("myPage.calendar.delete")}</button>
             <button onClick={() => {
-              const t=new Date();
-              onChange(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}`);
+              const now=new Date();
+              onChange(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
               setOpen(false);
             }} style={{ background:"none", border:"none", fontSize:12, color:"#3B82F6",
-              cursor:"pointer", fontFamily:BASE_FONT }}>이번 달</button>
+              cursor:"pointer", fontFamily:BASE_FONT }}>{t("myPage.calendar.thisMonth")}</button>
           </div>
         </div>
       )}
@@ -1156,6 +1166,7 @@ function EducationSection({ onToast }) {
 
 /* ── 메인 컴포넌트 ── */
 function Mypage() {
+  const { t, lang } = useLanguage();
   const { 
     user, loginUser, setUser, userRole, username: storeUsername, 
     partnerProfile, setPartnerProfile, 
@@ -1347,13 +1358,13 @@ function Mypage() {
           });
         }
         
-        showToast(response?.message || "정보가 저장되었습니다.");
+        showToast(response?.message || t("myPage.toasts.saved"));
         setIsEditing(false);
         // BannerCard 등 다른 컴포넌트 자동 갱신
         bumpProfileRefresh();
       } catch (error) {
         console.error("정보 저장 실패:", error);
-        const errorMsg = error?.response?.data?.message || "저장에 실패했습니다. 다시 시도해주세요.";
+        const errorMsg = error?.response?.data?.message || t("myPage.toasts.saveFailed");
         showToast(errorMsg);
       }
     } else {
@@ -1416,7 +1427,7 @@ function Mypage() {
             {/* 카드 타이틀 */}
             <div style={{ padding:"28px 28px 0" }}>
               <h2 style={{ fontSize:22, fontWeight:800, color:"#111827", marginBottom:20, fontFamily:BASE_FONT }}>
-                마이페이지 정보
+                {t("myPage.pageTitle")}
               </h2>
             </div>
 
@@ -1442,7 +1453,7 @@ function Mypage() {
               </div>
               {!isEditing && (
                 <div style={{ marginTop:8, fontSize:12, color:"#94A3B8", textAlign:"center" }}>
-                  이미지 변경은 '내 정보 수정' 버튼 클릭 후 가능합니다
+                  {t("myPage.imageHint")}
                 </div>
               )}
               <input ref={heroInputRef} type="file" accept="image/*"
@@ -1455,30 +1466,33 @@ function Mypage() {
 
                 {/* 서비스 형태 — 회원가입 시 확정, 수정 불가 */}
                 <div>
-                  <label style={LABEL_STYLE}>서비스 형태<span style={{ color:"#EF4444" }}>*</span></label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.serviceType")}<span style={{ color:"#EF4444" }}>*</span></label>
                   <div style={{ ...READONLY_STYLE, display:"flex", alignItems:"center", justifyContent:"space-between", background:"#F8FAFC", color:"#64748B" }}>
                     <span>{registeredPartnerType}</span>
-                    <span style={{ fontSize:10, color:"#94A3B8", fontWeight:600, letterSpacing:"0.05em" }}>고정</span>
+                    <span style={{ fontSize:10, color:"#94A3B8", fontWeight:600, letterSpacing:"0.05em" }}>{t("myPage.fixedLabel")}</span>
                   </div>
                 </div>
 
                 {/* 아이디 — 회원가입 시 확정, 수정 불가 */}
                 <div>
-                  <label style={LABEL_STYLE}>아이디<span style={{ color:"#EF4444" }}>*</span></label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.username")}<span style={{ color:"#EF4444" }}>*</span></label>
                   <div style={{ ...READONLY_STYLE, display:"flex", alignItems:"center", justifyContent:"space-between", background:"#F8FAFC", color:"#64748B" }}>
                     <span>@{user?.username || storeUsername || (typeof window !== 'undefined' ? localStorage.getItem('username') : null) || "—"}</span>
-                    <span style={{ fontSize:10, color:"#94A3B8", fontWeight:600, letterSpacing:"0.05em" }}>고정</span>
+                    <span style={{ fontSize:10, color:"#94A3B8", fontWeight:600, letterSpacing:"0.05em" }}>{t("myPage.fixedLabel")}</span>
                   </div>
                 </div>
 
                 {/* 성별 */}
                 <div>
-                  <label style={LABEL_STYLE}>성별</label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.gender")}</label>
                   <div style={{ display:"flex", gap:8 }}>
-                    {["남성","여성"].map(g=>{
-                      const sel=(isEditing?form.gender:userInfo.gender)===g;
+                    {[
+                      { v:"남성", l:t("myPage.fields.male") },
+                      { v:"여성", l:t("myPage.fields.female") },
+                    ].map(({v,l})=>{
+                      const sel=(isEditing?form.gender:userInfo.gender)===v;
                       return (
-                        <button key={g} onClick={()=>isEditing&&handleChange("gender",g)}
+                        <button key={v} onClick={()=>isEditing&&handleChange("gender",v)}
                           style={{ flex:1, padding:"12px 0", borderRadius:12,
                             border: sel?"2px solid #60A5FA":"1.5px solid #E5E7EB",
                             background: sel?"linear-gradient(135deg,#EFF6FF,#DBEAFE)":"white",
@@ -1486,7 +1500,7 @@ function Mypage() {
                             color:sel?"#2563EB":"#6B7280",
                             cursor:isEditing?"pointer":"default",
                             fontFamily:BASE_FONT, transition:"all 0.15s" }}>
-                          {g}
+                          {l}
                         </button>
                       );
                     })}
@@ -1495,7 +1509,7 @@ function Mypage() {
 
                 {/* 생년월일 */}
                 <div>
-                  <label style={LABEL_STYLE}>생년월일</label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.birthdate")}</label>
                   <DatePicker
                     value={isEditing?form.birthdate:userInfo.birthdate}
                     onChange={v=>handleChange("birthdate",v)}
@@ -1504,40 +1518,40 @@ function Mypage() {
 
                 {/* 지역 */}
                 <div>
-                  <label style={LABEL_STYLE}>지역</label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.region")}</label>
                   <div style={{ position:"relative" }}>
                     <MapPin size={15} color="#60A5FA" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)" }} />
                     <input value={isEditing?form.region:userInfo.region}
                       onChange={e=>handleChange("region",e.target.value)}
                       readOnly={!isEditing}
                       style={{ ...(isEditing?FIELD_STYLE:READONLY_STYLE), paddingLeft:36 }}
-                      placeholder="지역을 입력하세요" />
+                      placeholder={t("myPage.fields.regionPlaceholder")} />
                   </div>
                 </div>
 
                 {/* 세금 이메일 */}
                 <div>
-                  <label style={LABEL_STYLE}>세금 이메일</label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.taxEmail")}</label>
                   <input value={isEditing?form.taxEmail:userInfo.taxEmail}
                     onChange={e=>handleChange("taxEmail",e.target.value)}
                     readOnly={!isEditing} type="email"
                     style={isEditing?FIELD_STYLE:READONLY_STYLE}
-                    placeholder="세금계산서 이메일" />
+                    placeholder={t("myPage.fields.taxEmailPlaceholder")} />
                 </div>
 
                 {/* 연락처 */}
                 <div>
-                  <label style={LABEL_STYLE}>연락처<span style={{ color:"#EF4444" }}>*</span></label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.contact")}<span style={{ color:"#EF4444" }}>*</span></label>
                   <input value={isEditing?form.contact:userInfo.contact}
                     onChange={e=>handleChange("contact",e.target.value)}
                     readOnly={!isEditing} type="tel"
                     style={isEditing?FIELD_STYLE:READONLY_STYLE}
-                    placeholder="연락처를 입력하세요" />
+                    placeholder={t("myPage.fields.contactPlaceholder")} />
                 </div>
 
                 {/* 서비스 분야 */}
                 <div>
-                  <label style={LABEL_STYLE}>서비스 분야</label>
+                  <label style={LABEL_STYLE}>{t("myPage.fields.serviceField")}</label>
                   {(() => {
                     const FIELD_OPTIONS = ["AI", "커머스", "웹사이트", "디자인/기획", "유지보수", "핀테크", "SaaS", "모바일", "클라우드"];
                     const fieldKey = isPartner ? "serviceField" : "industry";
@@ -1553,7 +1567,7 @@ function Mypage() {
                           cursor: isEditing ? "pointer" : "default",
                         }}
                       >
-                        <option value="">선택해주세요</option>
+                        <option value="">{t("myPage.fields.selectOption")}</option>
                         {FIELD_OPTIONS.map(opt => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
@@ -1574,7 +1588,7 @@ function Mypage() {
                         border:"1.5px solid #D1D5DB", background:"white",
                         fontSize:15, fontWeight:600, color:"#374151",
                         cursor:"pointer", fontFamily:BASE_FONT,
-                      }}>취소</button>
+                      }}>{t("myPage.buttons.cancel")}</button>
                     <button onClick={handleEdit}
                       style={{
                         flex:1, padding:"15px 0", borderRadius:14,
@@ -1584,7 +1598,7 @@ function Mypage() {
                         display:"flex", alignItems:"center", justifyContent:"center", gap:8,
                         boxShadow:"0 4px 16px rgba(99,102,241,0.35)",
                       }}>
-                      <CheckCircle2 size={18} />저장하기
+                      <CheckCircle2 size={18} />{t("myPage.buttons.save")}
                     </button>
                   </div>
                 ) : (
@@ -1602,7 +1616,7 @@ function Mypage() {
                       onMouseEnter={e=>e.currentTarget.style.opacity="0.9"}
                       onMouseLeave={e=>e.currentTarget.style.opacity="1"}
                     >
-                      <CheckCircle2 size={18} />내 정보 수정
+                      <CheckCircle2 size={18} />{t("myPage.buttons.edit")}
                     </button>
                   </div>
                 )}
@@ -1623,11 +1637,11 @@ function Mypage() {
           <button onClick={() => navigate("/find-password")}
             style={{ background:"none", border:"none", fontSize:13,
             color:"#9CA3AF", cursor:"pointer", fontFamily:BASE_FONT,
-            textDecoration:"underline", padding:0 }}>비밀번호 변경</button>
+            textDecoration:"underline", padding:0 }}>{t("myPage.buttons.changePassword")}</button>
           <button onClick={() => setShowWithdraw(true)}
             style={{ background:"none", border:"none", fontSize:13,
             color:"#38BDF8", cursor:"pointer", fontFamily:BASE_FONT,
-            textDecoration:"underline", padding:0 }}>회원 탈퇴</button>
+            textDecoration:"underline", padding:0 }}>{t("myPage.buttons.withdraw")}</button>
         </div>
 
         {/* 회원 탈퇴 확인 모달 */}
@@ -1641,26 +1655,26 @@ function Mypage() {
               onClick={e => e.stopPropagation()}>
               <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>⚠️</div>
               <h2 style={{ fontSize:18, fontWeight:900, color:"#0F172A", margin:"0 0 10px",
-                textAlign:"center" }}>정말 탈퇴하시겠습니까?</h2>
+                textAlign:"center" }}>{t("myPage.withdraw.title")}</h2>
               <p style={{ fontSize:13, color:"#64748B", textAlign:"center", lineHeight:1.7,
                 margin:"0 0 8px" }}>
-                계정의 모든 데이터(프로필, 지원 내역, 설정)가<br/>초기화되며 복구할 수 없습니다.
+                {t("myPage.withdraw.desc")}
               </p>
               <p style={{ fontSize:13, color:"#3B82F6", textAlign:"center", lineHeight:1.7,
                 margin:"0 0 24px", fontWeight:600 }}>
-                탈퇴 후 파트너 또는 클라이언트로 새로 가입할 수 있습니다.
+                {t("myPage.withdraw.canRejoin")}
               </p>
               <div style={{ display:"flex", gap:10 }}>
                 <button onClick={() => setShowWithdraw(false)}
                   style={{ flex:1, padding:"11px 0", borderRadius:10,
                     border:"1.5px solid #E5E7EB", background:"white",
                     color:"#64748B", fontSize:14, fontWeight:600,
-                    cursor:"pointer", fontFamily:BASE_FONT }}>취소</button>
+                    cursor:"pointer", fontFamily:BASE_FONT }}>{t("myPage.withdraw.cancel")}</button>
                 <button onClick={handleWithdraw}
                   style={{ flex:1, padding:"11px 0", borderRadius:10,
                     border:"none", background:"#EF4444", color:"white",
                     fontSize:14, fontWeight:700, cursor:"pointer",
-                    fontFamily:BASE_FONT }}>탈퇴하기</button>
+                    fontFamily:BASE_FONT }}>{t("myPage.withdraw.confirm")}</button>
               </div>
             </div>
           </div>

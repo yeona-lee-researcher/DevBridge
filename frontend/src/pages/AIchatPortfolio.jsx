@@ -5,6 +5,7 @@ import Header_client from "../components/Header_client";
 import mascotIcon from "../assets/hero_check.png";
 import heroStudent from "../assets/hero_student.png";
 import { applicationsApi, portfolioApi, projectsApi } from "../api";
+import { profileApi } from "../api/profile.api";
 import { extractWithAI } from "../lib/aiClient";
 import useStore from "../store/useStore";
 import {
@@ -111,7 +112,6 @@ export default function AIchatPortfolio() {
     let cancelled = false;
     (async () => {
       try {
-        const { profileApi } = await import("../api/profile.api");
         const data = await profileApi.getMyDetail();
         if (!cancelled) setDbHero(data?.profileImageUrl || null);
       } catch { /* noop */ }
@@ -132,7 +132,6 @@ export default function AIchatPortfolio() {
     let alive = true;
     (async () => {
       try {
-        const { profileApi } = await import("../api/profile.api");
         const d = await profileApi.getMyDetail().catch(() => null);
         if (alive && d?.githubUrl && String(d.githubUrl).trim()) {
           // 이미 잔디 심은 사용자: 게이트 건너뛰고 본 단계로
@@ -153,7 +152,6 @@ export default function AIchatPortfolio() {
     }
     try {
       setBusy(true);
-      const { profileApi } = await import("../api/profile.api");
       const cur = await profileApi.getMyDetail().catch(() => ({}));
       await profileApi.saveMyDetail({ ...(cur || {}), githubUrl: url });
       pushMessage(setMessages, "user", `🔗 ${url}`);
@@ -637,7 +635,6 @@ export default function AIchatPortfolio() {
                 try {
                   setBusy(true);
                   // 프로필의 GitHub URL만 갱신: 기존 detail 조회 후 githubUrl만 덮어써서 저장
-                  const { profileApi } = await import("../api/profile.api");
                   const cur = await profileApi.getMyDetail().catch(() => ({}));
                   await profileApi.saveMyDetail({ ...(cur || {}), githubUrl: url });
                   pushMessage(setMessages, "user", `🔗 GitHub 등록만 완료: ${url}`);

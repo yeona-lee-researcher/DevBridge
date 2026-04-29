@@ -158,7 +158,6 @@ function ApplicantBanner({ app, onViewPartner, statusOverride }) {
     let cancelled = false;
     (async () => {
       try {
-        const { profileApi } = await import("../api/profile.api");
         const d = await profileApi.getDetailByUsername(username);
         if (!cancelled) {
           const raw = d?.profileImageUrl;

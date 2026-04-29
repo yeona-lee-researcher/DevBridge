@@ -5,6 +5,7 @@ import mascotIcon from "../assets/hero_default.png";
 import heroStudent from "../assets/hero_student.png";
 import { chatWithAI } from "../lib/aiClient";
 import useStore from "../store/useStore";
+import { profileApi } from "../api/profile.api";
 
 const SYSTEM_PROMPT_PROJECT = `너는 DevBridge 플랫폼의 AI 행운이라는 캐릭터야. 클라이언트가 프로젝트 등록을 쉽게 할 수 있도록 친근한 한국어로 인터뷰를 진행해. 핵심은 **굵게**, 이모지도 적절히 써.
 
@@ -330,7 +331,6 @@ export default function AIchatProject() {
     let cancelled = false;
     (async () => {
       try {
-        const { profileApi } = await import("../api/profile.api");
         const data = await profileApi.getMyDetail();
         if (!cancelled) setDbHero(data?.profileImageUrl || null);
       } catch { /* noop */ }

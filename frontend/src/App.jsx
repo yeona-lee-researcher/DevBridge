@@ -1,44 +1,47 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import LandingPage from "./pages/LandingPage";
-import Partner_Home from "./pages/Partner_Home";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import SolutionMarket from "./pages/SolutionMarket";
-import UsageGuide from "./pages/UsageGuide";
-import Signup from "./pages/Signup";
-import OAuthKakaoCallback from "./pages/OAuthKakaoCallback";
-import Mypage from "./pages/Mypage";
-import Loading from "./pages/Loading";
-import PartnerRegister from "./pages/PartnerRegister";
-import ClientRegister from "./pages/ClientRegister";
-import Client_Home from "./pages/Client_Home";
-import PartnerSearch from "./pages/PartnerSearch";
-import ClientSearch from "./pages/ClientSearch";
-import ProjectSearch from "./pages/ProjectSearch";
-import PartnerProfile from "./pages/PartnerProfile";
-import Client_Profile from "./pages/Client_Profile";
-import Partner_Portfolio from "./pages/Partner_Portfolio";
-import Client_Portfolio from "./pages/Client_Portfolio";
-import PortfolioDetailEditor from "./pages/PortfolioDetailEditor";
-import PortfolioProjectPreview from "./pages/PortfolioProjectPreview";
-import ProjectRegister from "./pages/ProjectRegister";
-import AIchatProject from "./pages/AIchatProject";
-import AIchatProfile from "./pages/AIchatProfile";
-import AIchatPortfolio from "./pages/AIchatPortfolio";
-import PartnerDashboard from "./pages/PartnerDashboard";
-import ClientDashboard from "./pages/ClientDashboard";
-import SolutionDetail from "./pages/SolutionDetail";
-import FindPassword from "./pages/FindPassword";
-import UsageGuide_Portfolio from "./pages/UsageGuide_Portfolio";
-import PartnerProfileView from "./pages/PartnerProfileView";
-import ClientProfileView from "./pages/ClientProfileView";
-import UsageGuide_Matching from "./pages/UsageGuide_Matching";
-import UsageGuide_Contract from "./pages/UsageGuide_Contract";
-import UsageGuide_Policy from "./pages/UsageGuide_Policy";
-import Onboarding from "./pages/Onboarding";
-import StreamChatPage from "./pages/StreamChatPage";
 import ChatBot from "./components/ChatBot";
 import Footer from "./components/ui/Footer";
+
+// 페이지 컴포넌트를 lazy load → 라우트별 청크 분리, 초기 번들 최소화
+const LandingPage           = lazy(() => import("./pages/LandingPage"));
+const Partner_Home          = lazy(() => import("./pages/Partner_Home"));
+const Home                  = lazy(() => import("./pages/Home"));
+const Login                 = lazy(() => import("./pages/Login"));
+const SolutionMarket        = lazy(() => import("./pages/SolutionMarket"));
+const UsageGuide            = lazy(() => import("./pages/UsageGuide"));
+const Signup                = lazy(() => import("./pages/Signup"));
+const OAuthKakaoCallback    = lazy(() => import("./pages/OAuthKakaoCallback"));
+const Mypage                = lazy(() => import("./pages/Mypage"));
+const Loading               = lazy(() => import("./pages/Loading"));
+const PartnerRegister       = lazy(() => import("./pages/PartnerRegister"));
+const ClientRegister        = lazy(() => import("./pages/ClientRegister"));
+const Client_Home           = lazy(() => import("./pages/Client_Home"));
+const PartnerSearch         = lazy(() => import("./pages/PartnerSearch"));
+const ClientSearch          = lazy(() => import("./pages/ClientSearch"));
+const ProjectSearch         = lazy(() => import("./pages/ProjectSearch"));
+const PartnerProfile        = lazy(() => import("./pages/PartnerProfile"));
+const Client_Profile        = lazy(() => import("./pages/Client_Profile"));
+const Partner_Portfolio     = lazy(() => import("./pages/Partner_Portfolio"));
+const Client_Portfolio      = lazy(() => import("./pages/Client_Portfolio"));
+const PortfolioDetailEditor = lazy(() => import("./pages/PortfolioDetailEditor"));
+const PortfolioProjectPreview = lazy(() => import("./pages/PortfolioProjectPreview"));
+const ProjectRegister       = lazy(() => import("./pages/ProjectRegister"));
+const AIchatProject         = lazy(() => import("./pages/AIchatProject"));
+const AIchatProfile         = lazy(() => import("./pages/AIchatProfile"));
+const AIchatPortfolio       = lazy(() => import("./pages/AIchatPortfolio"));
+const PartnerDashboard      = lazy(() => import("./pages/PartnerDashboard"));
+const ClientDashboard       = lazy(() => import("./pages/ClientDashboard"));
+const SolutionDetail        = lazy(() => import("./pages/SolutionDetail"));
+const FindPassword          = lazy(() => import("./pages/FindPassword"));
+const UsageGuide_Portfolio  = lazy(() => import("./pages/UsageGuide_Portfolio"));
+const PartnerProfileView    = lazy(() => import("./pages/PartnerProfileView"));
+const ClientProfileView     = lazy(() => import("./pages/ClientProfileView"));
+const UsageGuide_Matching   = lazy(() => import("./pages/UsageGuide_Matching"));
+const UsageGuide_Contract   = lazy(() => import("./pages/UsageGuide_Contract"));
+const UsageGuide_Policy     = lazy(() => import("./pages/UsageGuide_Policy"));
+const Onboarding            = lazy(() => import("./pages/Onboarding"));
+const StreamChatPage        = lazy(() => import("./pages/StreamChatPage"));
 
 
 function App() {
@@ -49,7 +52,8 @@ function App() {
 
   return (
     <>
-      <Routes>
+      <Suspense fallback={<div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontSize:14, color:"#6B7280" }}>Loading...</div>}>
+        <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/partner_home" element={<Partner_Home />} />
         <Route path="/home" element={<Home />} />
@@ -88,7 +92,8 @@ function App() {
         <Route path="/usage_guide/policy" element={<UsageGuide_Policy />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/chat" element={<StreamChatPage />} />
-      </Routes>
+        </Routes>
+      </Suspense>
       {showFooter && <Footer />}
       {!isLandingPage && <ChatBot />}
     </>

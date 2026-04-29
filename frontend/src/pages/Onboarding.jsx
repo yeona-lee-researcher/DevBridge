@@ -12,6 +12,8 @@ import heroMeeting from "../assets/hero_meeting.png";
 import heroMoney from "../assets/hero_money.png";
 import heroVacation from "../assets/hero_vacation.png";
 import hero from "../assets/hero.png";
+import { useLanguage } from "../i18n/LanguageContext";
+import translations from "../i18n/translations";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -139,6 +141,7 @@ const STEP_CARDS = [
 ];
 
 function TierCard({ tier, active, onClick }) {
+  const { t } = useLanguage();
   return (
     <div
       onClick={onClick}
@@ -162,13 +165,14 @@ function TierCard({ tier, active, onClick }) {
         fontSize: 11, fontWeight: 700, color: "#94A3B8", textAlign: "center",
         fontFamily: F, textTransform: "uppercase", letterSpacing: "0.08em",
       }}>
-        수수료 <span style={{ color: tier.color, fontSize: 14 }}>{tier.benefits[0].value}</span>
+        {t("onboarding.tier.labels.fee")} <span style={{ color: tier.color, fontSize: 14 }}>{tier.benefits[0].value}</span>
       </div>
     </div>
   );
 }
 
 function TierDetail({ tier }) {
+  const { t } = useLanguage();
   return (
     <div style={{
       background: "white",
@@ -195,7 +199,7 @@ function TierDetail({ tier }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <Award size={18} color={tier.color} />
           <span style={{ fontSize: 15, fontWeight: 800, color: "#1E293B", fontFamily: F }}>
-            달성 조건
+            {t("onboarding.tier.condition")}
           </span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -219,7 +223,7 @@ function TierDetail({ tier }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <Sparkles size={18} color={tier.color} />
           <span style={{ fontSize: 15, fontWeight: 800, color: "#1E293B", fontFamily: F }}>
-            제공 혜택
+            {t("onboarding.tier.benefit")}
           </span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
@@ -244,7 +248,7 @@ function TierDetail({ tier }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <Shield size={18} color={tier.color} />
           <span style={{ fontSize: 15, fontWeight: 800, color: "#1E293B", fontFamily: F }}>
-            잠금 해제되는 Hero 이미지 ({tier.heroes.length}종)
+            {t("onboarding.tier.heroImages").replace("{n}", tier.heroes.length)}
           </span>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -265,6 +269,7 @@ function TierDetail({ tier }) {
 
 function TutorialVideo() {
   const [playing, setPlaying] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div style={{
@@ -311,10 +316,10 @@ function TutorialVideo() {
               — TUTORIAL —
             </div>
             <div style={{ fontSize: 28, fontWeight: 900, fontFamily: F, letterSpacing: "-0.02em" }}>
-              DevBridge 플랫폼 완전 정복 가이드
+              {t("onboarding.tutorialSection.videoTitle")}
             </div>
             <div style={{ fontSize: 14, fontWeight: 500, color: "#CBD5E1", fontFamily: F, marginTop: 10 }}>
-              약 8분 · 프로젝트 매칭부터 계약 완료까지
+              {t("onboarding.tutorialSection.videoDesc")}
             </div>
           </div>
         </div>
@@ -327,8 +332,10 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const userRole = useStore(s => s.userRole);
   const [activeTier, setActiveTier] = useState("silver");
+  const { t, lang } = useLanguage();
+  const tr = translations[lang]?.onboarding || translations.en.onboarding;
 
-  const selectedTier = TIERS.find(t => t.key === activeTier) || TIERS[0];
+  const selectedTier = TIERS.find(tier => tier.key === activeTier) || TIERS[0];
   const HeaderComp = userRole === "client" ? Header_client : Header_partner;
 
   return (
@@ -370,17 +377,15 @@ export default function Onboarding() {
             </div>
             <h1 style={{
               fontSize: 40, fontWeight: 900, margin: 0, letterSpacing: "-0.02em",
-              lineHeight: 1.2, marginBottom: 14,
+              lineHeight: 1.2, marginBottom: 14, whiteSpace: "pre-line",
             }}>
-              처음이신가요?<br />
-              5분만에 DevBridge 마스터하기
+              {t("onboarding.heroTitle")}
             </h1>
             <p style={{
               fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.9)",
               margin: 0, maxWidth: 640, lineHeight: 1.6,
             }}>
-              튜토리얼 영상으로 플랫폼 사용법을 익히고,
-              레벨업 시스템으로 더 많은 혜택을 받아가세요.
+              {t("onboarding.heroSubtitle")}
             </p>
           </div>
         </div>
@@ -398,11 +403,11 @@ export default function Onboarding() {
               background: PRIMARY,
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
             }}>
-              플랫폼 사용법 튜토리얼
+              {t("onboarding.tutorialSection.title")}
             </span>
           </div>
           <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 22px", fontFamily: F }}>
-            가입부터 정산까지의 전 과정을 영상으로 빠르게 익혀보세요.
+            {t("onboarding.tutorialSection.subtitle")}
           </p>
 
           <TutorialVideo />
@@ -424,10 +429,10 @@ export default function Onboarding() {
                 </div>
                 <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#1E293B", fontFamily: F, marginBottom: 6 }}>
-                  {s.title}
+                  {tr.steps[i]?.title || s.title}
                 </div>
                 <p style={{ fontSize: 12.5, color: "#64748B", fontFamily: F, margin: 0, lineHeight: 1.6 }}>
-                  {s.desc}
+                  {tr.steps[i]?.desc || s.desc}
                 </p>
               </div>
             ))}
@@ -447,11 +452,11 @@ export default function Onboarding() {
               background: PRIMARY,
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
             }}>
-              레벨업 티어 시스템
+              {t("onboarding.tier.title")}
             </span>
           </div>
           <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 28px", fontFamily: F }}>
-            프로젝트를 완료할수록 티어가 올라가고, 더 강력한 혜택이 잠금 해제됩니다.
+            {t("onboarding.tier.subtitle")}
           </p>
 
           {/* 티어 선택 그리드 */}
@@ -515,7 +520,7 @@ export default function Onboarding() {
               boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
             }}
           >
-            대시보드로 이동 <ArrowRight size={18} strokeWidth={2.5} />
+            {t("onboarding.cta.btn")} <ArrowRight size={18} strokeWidth={2.5} />
           </button>
         </div>
       </div>

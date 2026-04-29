@@ -12,6 +12,8 @@ import heroCheck from "../assets/hero_check.png";
 import heroMeeting from "../assets/hero_meeting.png";
 import { partnersApi } from "../api";
 import { matchApi } from "../api/match.api";
+import { useLanguage } from "../i18n/LanguageContext";
+import translations from "../i18n/translations";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY = "#3B82F6";
@@ -30,40 +32,38 @@ const HERO_MAP = {
 /* ── 데이터 (백엔드 API에서 로드) ───────────────────────────────── */
 // PartnerSearch 컴포넌트 내부에서 useEffect로 fetch.
 
-const EXAMPLES = [
-  "React, Node.js 풀스택 개발 경험 있는 파트너가 필요해요. 쇼핑몰 MVP를 3개월 내 런칭하는 게 목표입니다.",
-  "AI 기반 추천 시스템 구축을 맡길 머신러닝 전문 파트너를 찾고 있어요. 예산은 500만원 내외입니다.",
-  "앱 개발 경험 풍부하고 소통이 잘 되는 시니어 개발자를 찾습니다. 핀테크 또는 금융 도메인 경험 우대합니다.",
-];
-const HIGHLIGHT_KEYWORDS = [["React, Node.js", "풀스택"], ["AI 기반", "머신러닝"], ["시니어 개발자", "핀테크"]];
 
 const SERVICE_FIELDS = ["AI", "커머스", "웹사이트", "디자인/기획", "유지보수", "핀테크", "SaaS", "모바일", "클라우드"];
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
 
 /* ── 등급 배지 설정 ──────────────────────────────────────── */
 const GRADE_BADGE = {
-  diamond: { label: "💎 다이아몬드", color: "#1E3A8A", bg: "#DBEAFE", border: "#93C5FD" },
-  platinum: { label: "🌙 플래티넘",  color: "#4C1D95", bg: "#EDE9FE", border: "#C4B5FD" },
-  gold:     { label: "🥇 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
-  silver:   { label: "🥈 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
-  bronze:   { label: "🥉 브론즈",    color: "#92400E", bg: "#FFF7ED", border: "#FED7AA" },
-  seed:     { label: "🌱 시드",      color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
+  diamond: { labelKey: "partnerSearch.filter.grades.diamond", color: "#1E3A8A", bg: "#DBEAFE", border: "#93C5FD" },
+  platinum: { labelKey: "partnerSearch.filter.grades.platinum", color: "#4C1D95", bg: "#EDE9FE", border: "#C4B5FD" },
+  gold:     { labelKey: "partnerSearch.filter.grades.gold",     color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
+  silver:   { labelKey: "partnerSearch.filter.grades.silver",   color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  bronze:   { labelKey: "partnerSearch.filter.grades.bronze",   color: "#92400E", bg: "#FFF7ED", border: "#FED7AA" },
+  seed:     { labelKey: "partnerSearch.filter.grades.seed",     color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
 };
 
 /* ── 유틸 ──────────────────────────────────────────────────── */
 const GRADE_LIST = [
-  { key: "diamond", label: "다이아몬드", icon: "💎" },
-  { key: "platinum", label: "플래티넘", icon: "🌙" },
-  { key: "gold",    label: "골드",     icon: "🥇" },
-  { key: "silver",  label: "실버",     icon: "🥈" },
-  { key: "seed",    label: "시드",     icon: "🌱" },
-  { key: "bronze",  label: "브론즈",   icon: "🥉" },
+  { key: "diamond", labelKey: "partnerSearch.filter.grades.diamond", icon: "💎" },
+  { key: "platinum", labelKey: "partnerSearch.filter.grades.platinum", icon: "🌙" },
+  { key: "gold",    labelKey: "partnerSearch.filter.grades.gold",     icon: "🥇" },
+  { key: "silver",  labelKey: "partnerSearch.filter.grades.silver",   icon: "🥈" },
+  { key: "seed",    labelKey: "partnerSearch.filter.grades.seed",     icon: "🌱" },
+  { key: "bronze",  labelKey: "partnerSearch.filter.grades.bronze",   icon: "🥉" },
 ];
 const LEVEL_OPTIONS = ["전체", "주니어", "미들", "시니어"];
 const PAGE_SIZE_OPTIONS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
 const matchColor = (n) => n >= 90 ? "#10B981" : n >= 70 ? "#3B82F6" : "#F59E0B";
 
 export default function PartnerSearch() {
+  const { t, lang } = useLanguage();
+  const tr = translations[lang]?.partnerSearch || translations.en.partnerSearch;
+  const examples = tr.examples;
+  const highlightKeywords = tr.highlightKeywords || [];
   // ===== 백엔드 API 데이터 =====
   const [allPartners, setAllPartners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +86,7 @@ export default function PartnerSearch() {
       })
       .catch((err) => {
         console.error("[PartnerSearch] 파트너 로딩 실패:", err);
-        if (mounted) setLoadError("파트너 데이터를 불러오지 못했습니다.");
+        if (mounted) setLoadError(t("partnerSearch.errors.loadFail"));
       })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
@@ -111,7 +111,7 @@ export default function PartnerSearch() {
   const [techInput, setTechInput]   = useState("");
   const [techs, setTechs]           = useState([]);
   const [remoteOnly, setRemoteOnly] = useState(false);
-  const [sort, setSort]             = useState("최신순");
+  const [sort, setSort]             = useState("latest");
   const [sortOpen, setSortOpen]     = useState(false);
   const [page, setPage]             = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(200);
@@ -154,15 +154,15 @@ export default function PartnerSearch() {
         const map = {};
         arr.forEach(s => { map[s.id] = { matchScore: s.matchScore, reasons: s.reasons || [] }; });
         setAiScores(map);
-        if (Object.keys(map).length > 0) setSort("AI 추천순");
+        if (Object.keys(map).length > 0) setSort("ai");
       })
       .catch((err) => {
         console.error("[PartnerSearch] AI 매칭 실패:", err);
         const message = err?.code === "ECONNABORTED"
-          ? "AI 응답이 지연되고 있어요. 잠시 후 다시 시도해주세요."
-          : !err?.response
-            ? "네트워크 연결이 불안정해요. 잠시 후 다시 시도해주세요."
-            : "AI 매칭에 실패했어요. 잠시 후 다시 시도해주세요.";
+          ? t("partnerSearch.errors.aiDelay")
+            : !err?.response
+              ? t("partnerSearch.errors.networkError")
+              : t("partnerSearch.errors.aiFail");
         setAiError(message);
         setAiScores({});
       })
@@ -233,8 +233,8 @@ export default function PartnerSearch() {
 
   /* 정렬 */
   const sorted = [...filtered].sort((a, b) => {
-    if (sort === "AI 추천순") return effectiveMatch(b) - effectiveMatch(a);
-    if (sort === "최신순") return b.id - a.id;
+    if (sort === "ai") return effectiveMatch(b) - effectiveMatch(a);
+    if (sort === "latest") return b.id - a.id;
     return effectiveMatch(b) - effectiveMatch(a);
   });
 
@@ -252,10 +252,10 @@ export default function PartnerSearch() {
             background: "linear-gradient(90deg, #7DD3FC 0%, #38BDF8 25%, #818CF8 65%, #93C5FD 100%)",
             WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text"
           }}>
-            AI 맞춤 파트너스 추천
+            {t("partnerSearch.heroTitle")}
           </h1>
           <p style={{ fontSize: 15, color: "#64748B", margin: "0 0 32px", fontFamily: F, fontWeight: 600 }}>
-            💡 필터 적용 후 질문하면, 행운이 알고리즘이 맞는 파트너를 더 딱맞게 잘 찾아드려요!
+            {t("partnerSearch.heroTip")}
           </p>
 
           {/* 검색창 */}
@@ -264,13 +264,13 @@ export default function PartnerSearch() {
               value={aiQuery}
               onChange={e => setAiQuery(e.target.value)}
               onKeyDown={e => e.key === "Enter" && applyFilters()}
-              placeholder="어느 파트너를 찾고 계신가요?"
+              placeholder={t("partnerSearch.placeholder")}
               style={{ width: "100%", height: 62, borderRadius: 999, border: "1.5px solid #E2E8F0", padding: "0 74px 0 32px", fontSize: 16, fontFamily: F, outline: "none", boxSizing: "border-box", boxShadow: "0 4px 24px rgba(0,0,0,0.10)", color: "#334155", backgroundColor: "white" }}
             />
             <button
               onClick={applyFilters}
               disabled={aiLoading}
-              title={aiLoading ? "AI가 찾는 중..." : "검색"}
+              title={aiLoading ? t("partnerSearch.list.searching") : t("partnerSearch.placeholder")}
               style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", width: 46, height: 46, borderRadius: "50%", border: "none", background: PRIMARY_GRAD, cursor: aiLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(99,102,241,0.40)", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}
               onMouseEnter={e => { if (!aiLoading) { e.currentTarget.style.transform = "translateY(-50%) scale(1.08)"; e.currentTarget.style.boxShadow = "0 6px 22px rgba(99,102,241,0.55)"; } }}
               onMouseLeave={e => { e.currentTarget.style.transform = "translateY(-50%)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(99,102,241,0.40)"; }}
@@ -283,7 +283,7 @@ export default function PartnerSearch() {
 
           {/* 예시 카드 */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, maxWidth: 860, margin: "0 auto" }}>
-            {EXAMPLES.map((ex, i) => (
+            {examples.map((ex, i) => (
               <div
                 key={i}
                 onClick={() => { setAiQuery(ex); }}
@@ -291,9 +291,9 @@ export default function PartnerSearch() {
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(59,130,246,0.18)"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)"; e.currentTarget.style.borderColor = "#E2E8F0"; }}
               >
-                <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, background: "#F1F5F9", borderRadius: 5, padding: "2px 8px", display: "inline-block", marginBottom: 10, fontFamily: F }}>예시</span>
+                <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, background: "#F1F5F9", borderRadius: 5, padding: "2px 8px", display: "inline-block", marginBottom: 10, fontFamily: F }}>{t("partnerSearch.exampleLabel")}</span>
                 <p style={{ fontSize: 13, color: "#334155", lineHeight: 1.7, margin: 0, fontFamily: F }}>
-                  {(() => { let txt = ex; const parts = []; const kws = HIGHLIGHT_KEYWORDS[i] || [];
+                  {(() => { let txt = ex; const parts = []; const kws = highlightKeywords[i] || [];
                     kws.forEach(kw => { const idx = txt.indexOf(kw); if (idx >= 0) { if (idx > 0) parts.push(txt.slice(0, idx)); parts.push(<span key={kw} style={{ color: PRIMARY, fontWeight: 700 }}>{kw}</span>); txt = txt.slice(idx + kw.length); } });
                     if (txt) parts.push(txt); return parts; })()}
                 </p>
@@ -309,7 +309,7 @@ export default function PartnerSearch() {
         {/* ── 왼쪽 필터 패널 ── */}
         <aside style={{ width: 280, flexShrink: 0, background: "white", borderRadius: 16, border: "1.5px solid #E2E8F0", padding: "28px 24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: "#1E293B", fontFamily: F }}>필터</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{t("partnerSearch.filter.title")}</span>
             <button
               onClick={applyFilters}
               style={{ background: PRIMARY_GRAD, color: "white", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F, boxShadow: "0 2px 10px rgba(99,102,241,0.30)", transition: "box-shadow 0.15s" }}
@@ -318,17 +318,17 @@ export default function PartnerSearch() {
               onMouseDown={e => e.currentTarget.style.boxShadow = "0 0 0 4px rgba(99,102,241,0.35), 0 4px 20px rgba(99,102,241,0.6)"}
               onMouseUp={e => e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.55)"}
             >
-              필터 적용
+              {t("partnerSearch.filter.apply")}
             </button>
           </div>
 
           {/* 검색어 */}
-          <FilterSection label="검색어">
+          <FilterSection label={t("partnerSearch.filter.keyword")}>
             <div style={{ position: "relative" }}>
               <input
                 value={nameFilter}
                 onChange={e => setNameFilter(e.target.value)}
-                placeholder="이름으로 검색..."
+                placeholder={t("partnerSearch.filter.keywordPlaceholder")}
                 style={{ width: "100%", height: 38, borderRadius: 8, border: "1.5px solid #E2E8F0", padding: "0 36px 0 12px", fontSize: 13, fontFamily: F, outline: "none", boxSizing: "border-box" }}
               />
               <Search size={15} color="#94A3B8" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }} />
@@ -336,22 +336,25 @@ export default function PartnerSearch() {
           </FilterSection>
 
           {/* 파트너 유형 */}
-          <FilterSection label="파트너 유형">
-            {Object.keys(typeFilter).map(t => (
-              <label key={t} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#334155", cursor: "pointer", marginBottom: 8, fontFamily: F }}>
-                <input
-                  type="checkbox"
-                  checked={typeFilter[t]}
-                  onChange={() => setTypeFilter(p => ({ ...p, [t]: !p[t] }))}
-                  style={{ width: 16, height: 16, accentColor: PRIMARY, cursor: "pointer" }}
-                />
-                {t}
-              </label>
-            ))}
+          <FilterSection label={t("partnerSearch.filter.partnerType")}>
+            {(() => {
+              const TYPE_LABEL_KEYS = { 개인: "individual", 팀: "team", 기업: "company" };
+              return Object.keys(typeFilter).map(typeKey => (
+                <label key={typeKey} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#334155", cursor: "pointer", marginBottom: 8, fontFamily: F }}>
+                  <input
+                    type="checkbox"
+                    checked={typeFilter[typeKey]}
+                    onChange={() => setTypeFilter(p => ({ ...p, [typeKey]: !p[typeKey] }))}
+                    style={{ width: 16, height: 16, accentColor: PRIMARY, cursor: "pointer" }}
+                  />
+                  {t(`partnerSearch.filter.${TYPE_LABEL_KEYS[typeKey] || typeKey}`)}
+                </label>
+              ));
+            })()}
           </FilterSection>
 
           {/* 서비스 분야 */}
-          <FilterSection label="서비스 분야">
+          <FilterSection label={t("partnerSearch.filter.serviceField")}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {SERVICE_FIELDS.map(f => (
                 <button
@@ -366,8 +369,8 @@ export default function PartnerSearch() {
           </FilterSection>
 
           {/* 예산 */}
-          <FilterSection label="예산 (비용)">
-            <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 13, color: TEAL, fontWeight: 700, fontFamily: F, marginBottom: 8 }}>~ {budget.toLocaleString()}만원</div>
+          <FilterSection label={t("partnerSearch.filter.budget")}>
+            <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 13, color: TEAL, fontWeight: 700, fontFamily: F, marginBottom: 8 }}>~ {budget.toLocaleString()}{lang === "en" ? "万KRW" : lang === "zh" ? "万韩元" : "만원"}</div>
             <input
               type="range" min={100} max={10000} step={100}
               value={budget}
@@ -375,20 +378,20 @@ export default function PartnerSearch() {
               style={{ width: "100%", accentColor: PRIMARY, cursor: "pointer" }}
             />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              {["무료/팀모임", "유료"].map(pt => (
+              {[{ key: "free", label: t("partnerSearch.filter.free") }, { key: "paid", label: t("partnerSearch.filter.paid") }].map(({ key, label }) => (
                 <button
-                  key={pt}
-                  onClick={() => togglePrice(pt)}
-                  style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${priceType.includes(pt) ? PRIMARY : "#E2E8F0"}`, background: priceType.includes(pt) ? "#EFF6FF" : "white", color: priceType.includes(pt) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, transition: "all 0.15s" }}
+                  key={key}
+                  onClick={() => togglePrice(key)}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${priceType.includes(key) ? PRIMARY : "#E2E8F0"}`, background: priceType.includes(key) ? "#EFF6FF" : "white", color: priceType.includes(key) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, transition: "all 0.15s" }}
                 >
-                  {pt}
+                  {label}
                 </button>
               ))}
             </div>
           </FilterSection>
 
           {/* 파트너 등급 */}
-          <FilterSection label="파트너 등급">
+          <FilterSection label={t("partnerSearch.filter.grade")}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {GRADE_LIST.map(({ key, label, icon }) => (
                 <button
@@ -396,14 +399,14 @@ export default function PartnerSearch() {
                   onClick={() => toggleGrade(key)}
                   style={{ padding: "8px 0", borderRadius: 8, border: `1.5px solid ${grades.includes(key) ? PRIMARY : "#E2E8F0"}`, background: grades.includes(key) ? "#EFF6FF" : "white", color: grades.includes(key) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >
-                  {icon} {label}
+                  {icon} {t(labelKey)}
                 </button>
               ))}
             </div>
           </FilterSection>
 
           {/* 경력 수준 */}
-          <FilterSection label="경력 수준">
+          <FilterSection label={t("partnerSearch.filter.level")}>
             <select
               value={level}
               onChange={e => setLevel(e.target.value)}
@@ -414,19 +417,19 @@ export default function PartnerSearch() {
           </FilterSection>
 
           {/* 필수 기술 스택 */}
-          <FilterSection label="필수 기술 스택">
+          <FilterSection label={t("partnerSearch.filter.techStack")}>
             <input
               value={techInput}
               onChange={e => setTechInput(e.target.value)}
               onKeyDown={addTech}
-              placeholder="기술 입력 후 Enter (예: Vue.js)"
+              placeholder={t("partnerSearch.filter.techPlaceholder")}
               style={{ width: "100%", height: 38, borderRadius: 8, border: "1.5px solid #E2E8F0", padding: "0 12px", fontSize: 13, fontFamily: F, outline: "none", boxSizing: "border-box" }}
             />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-              {techs.map(t => (
-                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#EFF6FF", color: PRIMARY, borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 600, fontFamily: F }}>
-                  {t}
-                  <span onClick={() => removeTech(t)} style={{ cursor: "pointer", fontWeight: 900, color: "#94A3B8" }}>×</span>
+              {techs.map(tech => (
+                <span key={tech} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#EFF6FF", color: PRIMARY, borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 600, fontFamily: F }}>
+                  {tech}
+                  <span onClick={() => removeTech(tech)} style={{ cursor: "pointer", fontWeight: 900, color: "#94A3B8" }}>×</span>
                 </span>
               ))}
             </div>
@@ -434,7 +437,7 @@ export default function PartnerSearch() {
 
           {/* 원격 근무만 보기 */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-            <span style={{ fontSize: 14, color: "#334155", fontFamily: F }}>원격 근무만 보기</span>
+            <span style={{ fontSize: 14, color: "#334155", fontFamily: F }}>{t("partnerSearch.filter.remoteOnly")}</span>
             <div
               onClick={() => setRemoteOnly(p => !p)}
               style={{ width: 44, height: 24, borderRadius: 999, background: remoteOnly ? PRIMARY : "#CBD5E1", cursor: "pointer", position: "relative", transition: "background 0.2s" }}
@@ -447,7 +450,7 @@ export default function PartnerSearch() {
             onClick={resetFilters}
             style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1.5px solid #E2E8F0", background: "white", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F }}
           >
-            필터 초기화
+            {t("partnerSearch.filter.reset")}
           </button>
         </aside>
 
@@ -456,15 +459,15 @@ export default function PartnerSearch() {
           {/* 헤더 행 */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div>
-              <span style={{ fontSize: 21.3, fontWeight: 900, fontFamily: F, background: PRIMARY_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>모든 파트너 탐색 </span>
-              <span style={{ fontSize: 14, color: "#94A3B8", fontFamily: F }}>총 {sorted.length.toLocaleString()}개의 프로 파트너스 분들이 있습니다</span>
+              <span style={{ fontSize: 21.3, fontWeight: 900, fontFamily: F, background: PRIMARY_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{t("partnerSearch.list.title")} </span>
+              <span style={{ fontSize: 14, color: "#94A3B8", fontFamily: F }}>{t("partnerSearch.list.total").replace("{count}", sorted.length.toLocaleString())}</span>
               {aiLoading && (
                 <span style={{ marginLeft: 12, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#3B82F6", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 999, padding: "4px 12px", fontFamily: F }}>
-                  <Loader2 size={12} className="animate-spin" /> 행운이 AI가 찾는 중...
+                  <Loader2 size={12} className="animate-spin" /> {t("partnerSearch.list.searching")}
                 </span>
               )}
               {!aiLoading && Object.keys(aiScores).length > 0 && (
-                <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700, color: "#0F766E", background: "#CCFBF1", border: "1px solid #5EEAD4", borderRadius: 999, padding: "4px 12px", fontFamily: F }}>✨ 행운이 AI 매칭 완료!</span>
+                <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700, color: "#0F766E", background: "#CCFBF1", border: "1px solid #5EEAD4", borderRadius: 999, padding: "4px 12px", fontFamily: F }}>{t("partnerSearch.list.matched")}</span>
               )}
               {aiError && (
                 <span style={{ marginLeft: 12, fontSize: 12, color: "#EF4444", fontFamily: F }}>{aiError}</span>
@@ -477,7 +480,7 @@ export default function PartnerSearch() {
                   onClick={() => { setPageSizeOpen(p => !p); setSortOpen(false); }}
                   style={{ display: "flex", alignItems: "center", gap: 4, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 10px", fontSize: 14, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: F }}
                 >
-                  {itemsPerPage}개 보기 ∨
+                  {itemsPerPage}{t("partnerSearch.list.showCount").replace("{n}", "").replace("Show ", "") || " items"} ∨
                 </button>
                 {pageSizeOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 120 }}>
@@ -489,7 +492,7 @@ export default function PartnerSearch() {
                         onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                         onMouseLeave={e => e.currentTarget.style.background = itemsPerPage === n ? "#EFF6FF" : "transparent"}
                       >
-                        {n}개 보기
+                        {n}
                       </div>
                     ))}
                   </div>
@@ -501,19 +504,19 @@ export default function PartnerSearch() {
                   onClick={() => { setSortOpen(p => !p); setPageSizeOpen(false); }}
                   style={{ display: "flex", alignItems: "center", gap: 6, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 600, color: PRIMARY, cursor: "pointer", fontFamily: F }}
                 >
-                  정렬: {sort} ∨
+                  {t("common.sort")}: {tr.list[sort === "ai" ? "sortAI" : sort === "latest" ? "sortLatest" : "sortFilter"]} ∨
                 </button>
                 {sortOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 140 }}>
-                    {["AI 추천순", "최신순", "필터 추천순"].map(s => (
+                    {[{key:"ai",label:t("partnerSearch.list.sortAI")},{key:"latest",label:t("partnerSearch.list.sortLatest")},{key:"filter",label:t("partnerSearch.list.sortFilter")}].map(({ key, label }) => (
                       <div
                         key={s}
-                        onClick={() => { setSort(s); setSortOpen(false); }}
-                        style={{ padding: "11px 16px", fontSize: 14, fontFamily: F, color: sort === s ? PRIMARY : "#334155", fontWeight: sort === s ? 700 : 500, cursor: "pointer", background: sort === s ? "#EFF6FF" : "transparent" }}
+                        onClick={() => { setSort(key); setSortOpen(false); }}
+                        style={{ padding: "11px 16px", fontSize: 14, fontFamily: F, color: sort === key ? PRIMARY : "#334155", fontWeight: sort === key ? 700 : 500, cursor: "pointer", background: sort === key ? "#EFF6FF" : "transparent" }}
                         onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                        onMouseLeave={e => e.currentTarget.style.background = sort === s ? "#EFF6FF" : "transparent"}
+                        onMouseLeave={e => e.currentTarget.style.background = sort === key ? "#EFF6FF" : "transparent"}
                       >
-                        {s}
+                        {label}
                       </div>
                     ))}
                   </div>
@@ -526,7 +529,7 @@ export default function PartnerSearch() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {loading ? (
               <div style={{ textAlign: "center", padding: "60px 0", color: "#94A3B8", fontSize: 16, fontFamily: F }}>
-                파트너 정보를 불러오는 중...
+                {t("partnerSearch.errors.loadFail")}
               </div>
             ) : loadError ? (
               <div style={{ textAlign: "center", padding: "60px 0", color: "#EF4444", fontSize: 15, fontFamily: F }}>
@@ -534,7 +537,7 @@ export default function PartnerSearch() {
               </div>
             ) : pageItems.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 0", color: "#94A3B8", fontSize: 16, fontFamily: F }}>
-                조건에 맞는 파트너가 없습니다.
+                {t("common.noResult") || "No results found."}
               </div>
             ) : pageItems.map(p => {
               const ai = aiScores[p.id];
@@ -572,6 +575,7 @@ export default function PartnerSearch() {
 /* ── 파트너 카드 ──────────────────────────────────────────── */
 function PartnerCard({ data }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const g = GRADE_BADGE[data.grade] || GRADE_BADGE.silver;
 
@@ -619,14 +623,14 @@ function PartnerCard({ data }) {
         {/* 등급 배지 + 슬로건 + AI 추천 */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: g.color, background: g.bg, border: `1px solid ${g.border}`, borderRadius: 6, padding: "3px 10px", fontFamily: F, whiteSpace: "nowrap", flexShrink: 0 }}>
-            {g.label}
+            {t(g.labelKey)}
           </span>
           <span style={{ fontSize: 16, fontWeight: 800, color: "#1E293B", fontFamily: F, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
             {data.slogan}
           </span>
           {Array.isArray(data.aiReasons) && (
             <span style={{ fontSize: 12, fontWeight: 800, color: matchColor(data.match), background: `${matchColor(data.match)}18`, borderRadius: 99, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0, fontFamily: F }}>
-              {data.match}% AI 추천
+              {data.match}% {t("partnerSearch.list.sortAI")}
             </span>
           )}
         </div>
@@ -673,8 +677,8 @@ function PartnerCard({ data }) {
               }}>{chip}</span>
             ))}
           {/* 기술 태그 */}
-          {data.tags.map(t => (
-            <span key={t} style={{ fontSize: 12, fontWeight: 600, color: "#475569", background: "#F1F5F9", borderRadius: 6, padding: "4px 10px", fontFamily: F }}>{t}</span>
+          {data.tags.map(tag => (
+            <span key={tag} style={{ fontSize: 12, fontWeight: 600, color: "#475569", background: "#F1F5F9", borderRadius: 6, padding: "4px 10px", fontFamily: F }}>{tag}</span>
           ))}
         </div>
 
@@ -701,7 +705,7 @@ function PartnerCard({ data }) {
           onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"}
           onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}
         >
-          상세보기
+          {t("common.viewDetail")}
         </button>
       </div>
     </div>

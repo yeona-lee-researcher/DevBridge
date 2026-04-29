@@ -5,6 +5,7 @@ import mascotIcon from "../assets/hero_check.png";
 import heroStudent from "../assets/hero_student.png";
 import { chatWithAI } from "../lib/aiClient";
 import useStore from "../store/useStore";
+import { profileApi } from "../api/profile.api";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -372,7 +373,6 @@ export default function AIchatProfile() {
     let cancelled = false;
     (async () => {
       try {
-        const { profileApi } = await import("../api/profile.api");
         const data = await profileApi.getMyDetail();
         if (!cancelled) setDbHero(data?.profileImageUrl || null);
       } catch { /* noop */ }

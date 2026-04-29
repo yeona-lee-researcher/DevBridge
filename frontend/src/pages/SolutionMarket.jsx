@@ -3,14 +3,28 @@ import { useNavigate } from "react-router-dom";
 import { Star, Clock, Award, Bookmark, ShoppingBag, Search } from "lucide-react";
 import AppHeader from "../components/AppHeader";
 import home3Img from "../assets/home3.png";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const F = "'Pretendard', sans-serif";
 const FH = "'Plus Jakarta Sans', 'Pretendard', sans-serif";
 
-const CATEGORIES = [
-    "중개 플랫폼", "IT 서비스 구축", "내부 업무시스템",
-    "AI / 머신러닝", "커머스 / 쇼핑몰", "웹사이트 제작", "마케팅",
-];
+const CATEGORY_KEYS = ["intermediary", "itServices", "internalSystems", "aiMl", "commerce", "website", "marketing"];
+const CATEGORY_KO   = ["중개 플랫폼", "IT 서비스 구축", "내부 업무시스템", "AI / 머신러닝", "커머스 / 쇼핑몰", "웹사이트 제작", "마케팅"];
+const CAT_KEY_MAP   = Object.fromEntries(CATEGORY_KO.map((k, i) => [k, CATEGORY_KEYS[i]]));
+
+const SUB_KEY_MAP = {
+  "전체": "all", "구인구직": "recruitment", "의료": "medical", "광고": "advertising",
+  "여행": "travel", "용역": "service", "건설": "construction", "중고거래": "usedGoods",
+  "반려동물": "pets", "교육": "education", "부동산": "realEstate", "콘텐츠": "content",
+  "기타": "other", "LMS / 강의 플랫폼": "lms", "POS / 키오스크": "pos",
+  "관제 / 모니터링": "monitoring", "디지털 자산": "digitalAsset", "CRM 고객관리": "crm",
+  "ERP 전사자원관리": "erp", "MES 생산관리": "mes", "PMS 프로젝트관리": "pms",
+  "통합물류관리": "logistics", "데이터 분석": "dataAnalysis", "머신러닝": "ml",
+  "챗봇": "chatbot", "Gen AI 서비스": "genAI", "입점몰": "openMall", "자사몰": "ownMall",
+  "라이브 커머스": "liveCommerce", "상세 페이지": "detailPage", "렌딩 페이지": "landingPage",
+  "사이트 유지보수": "siteManagement", "SEO 최적화": "seo", "마케팅 자동화": "marketingAuto",
+  "앱 패키징": "appPackaging",
+};
 
 const SUB_CATEGORIES = {
     "중개 플랫폼": ["전체", "구인구직", "의료", "광고", "여행", "용역", "건설", "중고거래", "반려동물", "교육", "부동산", "콘텐츠", "기타"],
@@ -249,6 +263,7 @@ function SolutionCard({ solution, isBookmarked, onBookmarkToggle, onClick }) {
 
 export default function SolutionMarket() {
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [activeCategory, setActiveCategory] = useState("중개 플랫폼");
     const [activeSubCategory, setActiveSubCategory] = useState("전체");
     const [searchQuery] = useState("");
@@ -300,18 +315,18 @@ export default function SolutionMarket() {
                         fontFamily: FH,
                         fontSize: 32, fontWeight: 900, color: "#0F172A", margin: "0 0 10px", letterSpacing: -0.5,
                     }}>
-                        검증된 IT 솔루션을 만나보세요
+                        {t("solutionMarket.heroTitle")}
                     </h1>
                     <p style={{ color: "#334155", fontSize: 14, marginBottom: 22, maxWidth: 460, marginLeft: "auto", marginRight: "auto", fontWeight: 600 }}>
-                        업종별 맞춤 솔루션으로 비즈니스 성장을 가속화하세요
+                        {t("solutionMarket.heroSubtitle")}
                     </p>
 
                     {/* Stats */}
                     <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 22, flexWrap: "wrap" }}>
                         {[
-                            { label: "등록된 솔루션", value: "320+", icon: "🟰" },
-                            { label: "검증 파트너", value: "180+", icon: "🤝" },
-                            { label: "평균 별점", value: "4.8", icon: "⭐" },
+                            { label: t("solutionMarket.statSolutions"), value: "320+", icon: "🟰" },
+                            { label: t("solutionMarket.statPartners"), value: "180+", icon: "🤝" },
+                            { label: t("solutionMarket.statRating"), value: "4.8", icon: "⭐" },
                         ].map(stat => (
                             <div key={stat.label} style={{
                                 width: 200,
@@ -340,7 +355,7 @@ export default function SolutionMarket() {
                     display: "flex", gap: 4, overflowX: "auto",
                     borderBottom: "1px solid #E5E7EB", paddingTop: 8,
                 }}>
-                    {CATEGORIES.map((cat) => (
+                    {CATEGORY_KO.map((cat) => (
                         <button
                             key={cat}
                             onClick={() => { setActiveCategory(cat); setActiveSubCategory("전체"); setCurrentPage(1); }}
@@ -354,7 +369,7 @@ export default function SolutionMarket() {
                                 fontFamily: F,
                             }}
                         >
-                            {cat}
+                            {t(`solutionMarket.categories.${CAT_KEY_MAP[cat]}`)}
                         </button>
                     ))}
                 </div>
@@ -374,7 +389,7 @@ export default function SolutionMarket() {
                                     : { background: "white", color: "#4B5563", borderColor: "#E5E7EB" }),
                             }}
                         >
-                            {sub}
+                            {SUB_KEY_MAP[sub] ? t(`solutionMarket.subCategories.${SUB_KEY_MAP[sub]}`) : sub}
                         </button>
                     ))}
                 </div>
@@ -399,7 +414,7 @@ export default function SolutionMarket() {
 
                     {filtered.length === 0 && (
                         <div style={{ textAlign: "center", padding: "80px 0", color: "#9CA3AF", gridColumn: "1 / -1" }}>
-                            검색 결과가 없습니다.
+                            {t("solutionMarket.noResult")}
                         </div>
                     )}
                 </div>
@@ -443,11 +458,10 @@ export default function SolutionMarket() {
                 }}>
                     <div>
                         <h3 style={{ fontSize: 22, fontWeight: 800, color: "#1E3A5F", margin: "0 0 8px", fontFamily: FH }}>
-                            IT 파트너이신가요?
+                            {t("solutionMarket.partnerCta.title")}
                         </h3>
-                        <p style={{ fontSize: 15, color: "#6B7280", margin: 0, lineHeight: 1.6 }}>
-                            내 솔루션을 마켓에 등록하고 더 많은 클라이언트를 만나보세요.<br />
-                            DevBridge 파트너는 평균 월 3건 이상의 프로젝트를 수주합니다.
+                        <p style={{ fontSize: 15, color: "#6B7280", margin: 0, lineHeight: 1.6, whiteSpace: "pre-line" }}>
+                            {t("solutionMarket.partnerCta.desc")}
                         </p>
                     </div>
                     <button style={{
@@ -460,7 +474,7 @@ export default function SolutionMarket() {
                         whiteSpace: "nowrap",
                         boxShadow: "0 4px 14px rgba(59,130,246,0.3)",
                     }}>
-                        솔루션 등록하기
+                        {t("solutionMarket.partnerCta.btn")}
                         <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_forward</span>
                     </button>
                 </div>

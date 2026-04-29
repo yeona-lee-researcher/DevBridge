@@ -2,25 +2,27 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import mainLogo from "../assets/main_logo.png";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif";
 
-/* 로그인 요구 팝업이 뜨는 메뉴 키 */
-const LOGIN_REQUIRED = new Set(["프로젝트 등록", "포트폴리오"]);
+/* Paths that require login */
+const LOGIN_REQUIRED_PATHS = new Set(["/project_register", "/partner_portfolio"]);
 
-const NAV_ITEMS = [
-  { name: "프로젝트 등록", path: "/project_register" },
-  { name: "프로젝트 찾기", path: "/project_search" },
-  { name: "클라이언트 찾기", path: "/client_search" },
-  { name: "파트너 찾기", path: "/partner_search" },
-  { name: "포트폴리오", path: "/partner_portfolio" },
-  { name: "솔루션 마켓", path: "/solution_market" },
-  { name: "이용 가이드 센터", path: "/usage_guide" },
+const NAV_PATHS = [
+  { key: "registerProject", path: "/project_register" },
+  { key: "findProject",     path: "/project_search" },
+  { key: "findClient",      path: "/client_search" },
+  { key: "findPartner",     path: "/partner_search" },
+  { key: "portfolio",       path: "/partner_portfolio" },
+  { key: "solutionMarket",  path: "/solution_market" },
+  { key: "usageGuide",      path: "/usage_guide" },
 ];
 
-/* ── 로그인 유도 팝업 ─────────────────────────────────────── */
+/* ── Login required modal ─────────────────────────────────── */
 function LoginRequiredModal({ onClose }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   return (
     <div
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
@@ -38,7 +40,6 @@ function LoginRequiredModal({ onClose }) {
         boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
         fontFamily: F, textAlign: "center",
       }}>
-        {/* 아이콘 */}
         <div style={{
           width: 56, height: 56, borderRadius: "50%",
           background: "linear-gradient(135deg, #DBEAFE, #EDE9FE)",
@@ -47,13 +48,14 @@ function LoginRequiredModal({ onClose }) {
         }}>🔒</div>
 
         <p style={{ fontSize: 18, fontWeight: 800, color: "#111827", margin: "0 0 10px" }}>
-          로그인이 필요합니다
+          {t("loginModal.title")}
         </p>
         <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.65, margin: "0 0 28px" }}>
-          해당 기능은 로그인 후 이용할 수 있습니다.<br />로그인하시겠어요?
+          {t("loginModal.desc").split("\n").map((line, i) => (
+            <span key={i}>{line}{i === 0 && <br />}</span>
+          ))}
         </p>
 
-        {/* 버튼 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <button
             onClick={() => navigate("/login")}
@@ -63,7 +65,7 @@ function LoginRequiredModal({ onClose }) {
               color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer",
               fontFamily: F,
             }}
-          >로그인하기</button>
+          >{t("loginModal.loginBtn")}</button>
           <button
             onClick={() => { onClose(); navigate("/home"); }}
             style={{
@@ -73,17 +75,18 @@ function LoginRequiredModal({ onClose }) {
               fontSize: 15, fontWeight: 600, cursor: "pointer",
               fontFamily: F,
             }}
-          >홈으로 이동</button>
+          >{t("loginModal.homeBtn")}</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── 로그인 버튼 ──────────────────────────────────────────── */
+/* ── Login button ──────────────────────────────────────────── */
 function LoginBtn() {
   const [hovered, setHovered] = React.useState(false);
   const [pressed, setPressed] = React.useState(false);
+  const { t } = useLanguage();
   return (
     <Link
       to="/login"
@@ -107,16 +110,16 @@ function LoginBtn() {
         display: "inline-block",
         boxShadow: hovered ? "0 2px 10px rgba(99,102,241,0.18)" : "none",
       }}
-    >로그인</Link>
+    >{t("nav.login")}</Link>
   );
 }
 
-/* ── 네비 아이템 ──────────────────────────────────────────── */
+/* ── Nav item ──────────────────────────────────────────── */
 function NavItem({ item, onLoginRequired }) {
   const [hovered, setHovered] = React.useState(false);
 
   const handleClick = (e) => {
-    if (LOGIN_REQUIRED.has(item.name)) {
+    if (LOGIN_REQUIRED_PATHS.has(item.path)) {
       e.preventDefault();
       onLoginRequired();
     }
@@ -143,7 +146,7 @@ function NavItem({ item, onLoginRequired }) {
         transition: "all 0.15s ease",
       }}
     >
-      {item.name}
+      {item.label}
     </Link>
   );
 }
@@ -151,6 +154,12 @@ function NavItem({ item, onLoginRequired }) {
 /* ── Header_home ──────────────────────────────────────────── */
 function Header_home() {
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const { t } = useLanguage();
+
+  const navItems = NAV_PATHS.map(item => ({
+    ...item,
+    label: t(`nav.${item.key}`),
+  }));
 
   return (
     <>
@@ -171,7 +180,7 @@ function Header_home() {
           height: 58,
           gap: 14,
         }}>
-          {/* 로고 */}
+          {/* Logo */}
           <Link to="/" style={{
             display: "flex",
             alignItems: "center",
@@ -190,11 +199,11 @@ function Header_home() {
             }}>DevBridge</span>
           </Link>
 
-          {/* 네비게이션 */}
+          {/* Navigation */}
           <nav style={{ display: "flex", gap: 4, flex: 1 }}>
-            {NAV_ITEMS.map(item => (
+            {navItems.map(item => (
               <NavItem
-                key={item.name}
+                key={item.key}
                 item={item}
                 onLoginRequired={() => setShowLoginModal(true)}
               />

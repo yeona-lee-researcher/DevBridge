@@ -10,6 +10,7 @@ import home3Img from "../assets/home3.png";
 import Header_client from "../components/Header_client";
 import Header_partner from "../components/Header_partner";
 import UsageGuideSidebar from "../components/UsageGuideSidebar";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif";
 
@@ -214,6 +215,7 @@ function StepCard({ item }) {
 /* ── 메인 컴포넌트 ──────────────────────────── */
 export default function UsageGuide() {
   const { userRole } = useStore();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState("client"); // "client" | "partner"
   const [faqSearch, setFaqSearch] = useState("");
 
@@ -249,10 +251,10 @@ export default function UsageGuide() {
           <h1 style={{
             fontSize: 34, fontWeight: 900, color: "#0F172A", margin: "0 0 14px", lineHeight: 1.3,
           }}>
-            DevBridge 처음이신가요?
+            {t("usageGuide.heroTitle")}
           </h1>
           <p style={{ color: "#334155", fontSize: 16, margin: 0, fontWeight: 600 }}>
-            단계별 가이드로 시작부터 완료까지 쉽고 빠르게 이용해보세요
+            {t("usageGuide.heroSubtitle")}
           </p>
 
           {/* 빠른 접근 카드 */}
@@ -261,9 +263,9 @@ export default function UsageGuide() {
             marginTop: 24, flexWrap: "wrap",
           }}>
             {[
-              { icon: <PlayCircle size={18} />, label: "시작 가이드 영상", sub: "3분 완성" },
-              { icon: <FileText size={18} />, label: "계약 가이드", sub: "PDF 다운로드" },
-              { icon: <Star size={18} />, label: "파트너 선정 팁", sub: "베스트 사례" },
+              { icon: <PlayCircle size={18} />, label: t("usageGuide.quickCards.startVideo"), sub: t("usageGuide.quickCards.duration") },
+              { icon: <FileText size={18} />, label: t("usageGuide.quickCards.contractGuide"), sub: t("usageGuide.quickCards.pdfDownload") },
+              { icon: <Star size={18} />, label: t("usageGuide.quickCards.partnerTips"), sub: t("usageGuide.quickCards.bestCases") },
             ].map(item => (
               <div key={item.label} style={{
                 background: "rgba(255,255,255,0.58)",
@@ -298,8 +300,8 @@ export default function UsageGuide() {
             overflow: "hidden",
           }}>
             {[
-              { key: "client", label: "👤 클라이언트 가이드", sub: "프로젝트를 맡기고 싶은 분" },
-              { key: "partner", label: "💼 파트너 가이드", sub: "IT 서비스를 제공하는 분" },
+              { key: "client", label: t("usageGuide.tabs.client"), sub: t("usageGuide.tabs.clientDesc") },
+              { key: "partner", label: t("usageGuide.tabs.partner"), sub: t("usageGuide.tabs.partnerDesc") },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -327,10 +329,10 @@ export default function UsageGuide() {
           {/* 단계별 가이드 */}
           <div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: "0 0 8px" }}>
-              {activeTab === "client" ? "클라이언트" : "파트너"} 이용 방법
+              {activeTab === "client" ? t("usageGuide.howToUse.clientTitle") : t("usageGuide.howToUse.partnerTitle")}
             </h2>
             <p style={{ fontSize: 14, color: "#6B7280", margin: "0 0 28px" }}>
-              아래 5단계를 따라하면 누구나 쉽게 DevBridge를 이용할 수 있습니다.
+              {t("usageGuide.howToUse.desc")}
             </p>
 
             {/* 진행 바 */}
@@ -373,10 +375,10 @@ export default function UsageGuide() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <HelpCircle size={22} color="#3b82f6" />
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: 0 }}>자주 묻는 질문</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: 0 }}>{t("usageGuide.faq.title")}</h2>
             </div>
             <p style={{ fontSize: 14, color: "#6B7280", margin: "0 0 24px" }}>
-              궁금한 점을 검색하거나 아래 FAQ를 확인하세요.
+              {t("usageGuide.faq.subtitle")}
             </p>
 
             {/* FAQ 검색 */}
@@ -385,7 +387,7 @@ export default function UsageGuide() {
               <input
                 value={faqSearch}
                 onChange={e => setFaqSearch(e.target.value)}
-                placeholder="질문 검색"
+                placeholder={t("usageGuide.faq.placeholder")}
                 style={{
                   width: "100%", padding: "12px 16px 12px 40px",
                   borderRadius: 10, border: "1.5px solid #E5E7EB",
@@ -401,7 +403,7 @@ export default function UsageGuide() {
               )) : (
                 <div style={{ textAlign: "center", padding: "40px 0", color: "#9CA3AF" }}>
                   <HelpCircle size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
-                  <p style={{ fontSize: 14 }}>관련 FAQ를 찾을 수 없습니다.<br />아래 고객센터로 문의해 주세요.</p>
+                  <p style={{ fontSize: 14 }}>{t("usageGuide.faq.noResult")}</p>
                 </div>
               )}
             </div>
@@ -422,10 +424,10 @@ export default function UsageGuide() {
             }}>
               <div>
                 <p style={{ fontSize: 16, fontWeight: 800, color: "#1E3A5F", margin: "0 0 6px" }}>
-                  추가 도움이 필요하신가요?
+                  {t("usageGuide.support.title")}
                 </p>
                 <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
-                  운영시간 평일 09:00 ~ 18:00 · support@devbridge.kr
+                  {t("usageGuide.support.hours")}
                 </p>
               </div>
               <button style={{
@@ -435,7 +437,7 @@ export default function UsageGuide() {
                 borderRadius: 10, fontSize: 14, fontWeight: 700,
                 cursor: "pointer", fontFamily: F,
               }}>
-                1:1 문의하기
+                {t("usageGuide.support.contact")}
               </button>
             </div>
           </div>

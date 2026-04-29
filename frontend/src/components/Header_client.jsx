@@ -6,15 +6,16 @@ import heroCheck from "../assets/hero_check.png";
 import useStore from "../store/useStore";
 import { profileApi } from "../api/profile.api";
 import { authApi } from "../api/auth.api";
+import { useLanguage } from "../i18n/LanguageContext";
 
-const NAV_ITEMS = [
-  { name: "프로젝트 등록", path: "/project_register" },
-  { name: "프로젝트 찾기", path: "/project_search" },
-  { name: "클라이언트 찾기", path: "/client_search" },
-  { name: "파트너 찾기", path: "/partner_search" },
-  { name: "포트폴리오", path: "/client_portfolio" },
-  { name: "솔루션 마켓", path: "/solution_market" },
-  { name: "이용 가이드 센터", path: "/usage_guide" },
+const NAV_PATHS = [
+  { key: "registerProject", path: "/project_register" },
+  { key: "findProject",     path: "/project_search" },
+  { key: "findClient",      path: "/client_search" },
+  { key: "findPartner",     path: "/partner_search" },
+  { key: "portfolio",       path: "/client_portfolio" },
+  { key: "solutionMarket",  path: "/solution_market" },
+  { key: "usageGuide",      path: "/usage_guide" },
 ];
 
 const BASE_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -94,7 +95,7 @@ function NavItemDark({ item }) {
         marginBottom: -1,
       }}
     >
-      {item.name}
+      {item.label}
     </Link>
   );
 }
@@ -102,7 +103,13 @@ function NavItemDark({ item }) {
 function Header_client() {
   const navigate = useNavigate();
   const { user, loginUser, clearUser, clearLogin } = useStore();
+  const { t } = useLanguage();
   const [dbHero, setDbHero] = useState(null);
+
+  const navItems = NAV_PATHS.map(item => ({
+    ...item,
+    label: t(`nav.${item.key}`),
+  }));
 
   useEffect(() => {
     let cancelled = false;
@@ -194,9 +201,9 @@ function Header_client() {
           }}>DevBridge</span>
         </Link>
 
-        {/* 네비게이션 */}
+        {/* Navigation */}
         <nav style={{ display: "flex", gap: 4, flex: 1, alignItems: "center" }}>
-          {NAV_ITEMS.map(item => <NavItemDark key={item.name} item={item} />)}
+          {navItems.map(item => <NavItemDark key={item.key} item={item} />)}
         </nav>
 
         {/* 우측 */}
@@ -229,16 +236,16 @@ function Header_client() {
               <div onMouseEnter={openProfile} onMouseLeave={closeProfile}
                 style={{ ...DROP_PANEL_STYLE, minWidth: 190 }}>
                 {[
-                  { label: "관리 대시보드",       path: "/client_dashboard" },
-                  { label: "마이 포트폴리오",    path: "/client_portfolio" },
-                  { label: "클라이언트 프로필 관리", path: "/client_profile" },
-                  { label: "마이 페이지 정보",    path: "/mypage" },
+                  { labelKey: "nav.dashboard",     path: "/client_dashboard" },
+                  { labelKey: "nav.myPortfolio",   path: "/client_portfolio" },
+                  { labelKey: "nav.clientProfile", path: "/client_profile" },
+                  { labelKey: "nav.myPage",         path: "/mypage" },
                 ].map(item => (
-                  <DropMenuItemDark key={item.label} label={item.label}
+                  <DropMenuItemDark key={item.labelKey} label={t(item.labelKey)}
                     onClick={() => { navigate(item.path); setProfileDropOpen(false); }} />
                 ))}
                 <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.08)", margin: "8px 0" }} />
-                <DropMenuItemDark label="로그아웃" danger onClick={handleLogout} />
+                <DropMenuItemDark label={t("nav.logout")} danger onClick={handleLogout} />
               </div>
             )}
           </div>

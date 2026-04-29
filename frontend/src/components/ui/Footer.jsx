@@ -1,12 +1,7 @@
+import { useLanguage } from "../../i18n/LanguageContext";
 import devBridgeLogo from "../../assets/main_logo.png";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-
-const COLS = [
-  { title: "서비스", links: ["프로젝트 찾기", "프리랜서 가이드", "개발자 커뮤니티", "솔루션 마켓"] },
-  { title: "리소스", links: ["이용 가이드", "공지사항", "자주 묻는 질문"] },
-  { title: "회사",   links: ["회사 소개", "채용", "개인정보 처리방침"] },
-];
 
 const SOCIAL = [
   {
@@ -28,6 +23,42 @@ const SOCIAL = [
 ];
 
 export default function Footer() {
+  const { t, lang, setLang } = useLanguage();
+
+  const COLS = [
+    {
+      titleKey: "footer.service",
+      links: [
+        { key: "footer.links.findProject" },
+        { key: "footer.links.freelancerGuide" },
+        { key: "footer.links.developerCommunity" },
+        { key: "footer.links.solutionMarket" },
+      ],
+    },
+    {
+      titleKey: "footer.resources",
+      links: [
+        { key: "footer.links.usageGuide" },
+        { key: "footer.links.announcements" },
+        { key: "footer.links.faq" },
+      ],
+    },
+    {
+      titleKey: "footer.company",
+      links: [
+        { key: "footer.links.aboutUs" },
+        { key: "footer.links.careers" },
+        { key: "footer.links.privacyPolicy" },
+      ],
+    },
+  ];
+
+  const LANGS = [
+    { code: "en", label: "English" },
+    { code: "ko", label: "한국어" },
+    { code: "zh", label: "中文" },
+  ];
+
   return (
     <footer style={{
       background: "white",
@@ -38,7 +69,7 @@ export default function Footer() {
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ display: "flex", gap: 60, marginBottom: 40, flexWrap: "wrap" }}>
 
-          {/* 브랜드 영역 */}
+          {/* Brand area */}
           <div style={{ minWidth: 200 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <img src={devBridgeLogo} alt="DevBridge" style={{ height: 28, objectFit: "contain" }} />
@@ -52,7 +83,7 @@ export default function Footer() {
               fontSize: 13, color: "#64748B", fontFamily: F,
               lineHeight: 1.8, margin: "0 0 18px", maxWidth: 200,
             }}>
-              글로벌 IT 인재들과 협업하여 혁신적인 결과물을 만듭니다. 성공적인 팀 매칭과 프로젝트 관리를 경험해보세요.
+              {t("footer.tagline")}
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               {SOCIAL.map(s => (
@@ -70,45 +101,55 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* 링크 컬럼들 */}
+          {/* Link columns */}
           {COLS.map(col => (
-            <div key={col.title}>
+            <div key={col.titleKey}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#1E293B", fontFamily: F, marginBottom: 16 }}>
-                {col.title}
+                {t(col.titleKey)}
               </div>
               {col.links.map(link => (
-                <div key={link} style={{
+                <div key={link.key} style={{
                   fontSize: 13, color: "#64748B", fontFamily: F,
                   marginBottom: 10, cursor: "pointer",
                   transition: "color 0.15s",
                 }}
                   onMouseEnter={e => e.currentTarget.style.color = "#3B82F6"}
                   onMouseLeave={e => e.currentTarget.style.color = "#64748B"}
-                >{link}</div>
+                >{t(link.key)}</div>
               ))}
             </div>
           ))}
         </div>
 
-        {/* 하단 바 */}
+        {/* Bottom bar */}
         <div style={{
           borderTop: "1px solid #E5E7EB", paddingTop: 20,
           display: "flex", justifyContent: "space-between", alignItems: "center",
           flexWrap: "wrap", gap: 12,
         }}>
           <span style={{ fontSize: 13, color: "#94A3B8", fontFamily: F }}>
-            © 2024 BridgeBird. All rights reserved.
+            {t("footer.copyright")}
           </span>
-          <div style={{ display: "flex", gap: 16 }}>
-            {["English", "한국어", "日本語"].map(lang => (
-              <span key={lang} style={{
-                fontSize: 13, color: "#64748B",
-                cursor: "pointer", fontFamily: F,
-                transition: "color 0.15s",
-              }}
-                onMouseEnter={e => e.currentTarget.style.color = "#1E293B"}
-                onMouseLeave={e => e.currentTarget.style.color = "#64748B"}
-              >{lang}</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            {LANGS.map(l => (
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                style={{
+                  fontSize: 13,
+                  fontFamily: F,
+                  cursor: "pointer",
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  border: lang === l.code ? "1.5px solid #3B82F6" : "1.5px solid #E5E7EB",
+                  background: lang === l.code ? "#EFF6FF" : "transparent",
+                  color: lang === l.code ? "#1D4ED8" : "#64748B",
+                  fontWeight: lang === l.code ? 700 : 400,
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (lang !== l.code) e.currentTarget.style.color = "#1E293B"; }}
+                onMouseLeave={e => { if (lang !== l.code) e.currentTarget.style.color = "#64748B"; }}
+              >{l.label}</button>
             ))}
           </div>
         </div>

@@ -7,51 +7,48 @@ import { projectsApi, applicationsApi } from "../api";
 import useStore from "../store/useStore";
 import { matchApi } from "../api/match.api";
 import { renderProjectOverview } from "../lib/projectMarkdown.jsx";
+import { useLanguage } from "../i18n/LanguageContext";
+import translations from "../i18n/translations";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY = "#3B82F6";
 const TEAL = "#0CA5A0";
-
-const EXAMPLES = [
-  "AI 챗봇으로 고객 문의를 자동화 하고 싶습니다.",
-  "중개 플랫폼을 만들고 싶어요. 예약·결제 기능 통합 사례와 비용을 알고 싶습니다.",
-  "AI 추천 시스템을 활용해 고객별 맞춤형 상품을 제안하고 싶습니다.",
-];
-const HIGHLIGHT_KEYWORDS = [["AI 챗봇", "자동화"], ["중개 플랫폼", "예약·결제"], ["AI 추천 시스템", "맞춤형"]];
 
 const SERVICE_FIELDS = ["AI", "커머스", "웹사이트", "디자인/기획", "유지보수", "핀테크", "SaaS", "모바일", "클라우드"];
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
 
 
 const GRADE_BADGE = {
-  diamond: { label: "💎 다이아몬드", color: "#1E3A8A", bg: "#DBEAFE", border: "#93C5FD" },
-  platinum: { label: "🌙 플래티넘",  color: "#4C1D95", bg: "#EDE9FE", border: "#C4B5FD" },
-  gold:     { label: "🥇 골드",      color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
-  silver:   { label: "🥈 실버",      color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
-  bronze:   { label: "🥉 브론즈",    color: "#92400E", bg: "#FFF7ED", border: "#FED7AA" },
-  seed:     { label: "🌱 시드",      color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
+  diamond: { labelKey: "projectSearch.filter.grades.diamond", color: "#1E3A8A", bg: "#DBEAFE", border: "#93C5FD" },
+  platinum: { labelKey: "projectSearch.filter.grades.platinum", color: "#4C1D95", bg: "#EDE9FE", border: "#C4B5FD" },
+  gold:     { labelKey: "projectSearch.filter.grades.gold",     color: "#78350F", bg: "#FEF3C7", border: "#FCD34D" },
+  silver:   { labelKey: "projectSearch.filter.grades.silver",   color: "#374151", bg: "#F1F5F9", border: "#CBD5E1" },
+  bronze:   { labelKey: "projectSearch.filter.grades.bronze",   color: "#92400E", bg: "#FFF7ED", border: "#FED7AA" },
+  seed:     { labelKey: "projectSearch.filter.grades.seed",     color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
 };
 
 const GRADE_LIST = [
-  { key: "diamond", label: "다이아몬드", icon: "💎" },
-  { key: "platinum", label: "플래티넘",  icon: "🌙" },
-  { key: "gold",    label: "골드",      icon: "🥇" },
-  { key: "silver",  label: "실버",      icon: "🥈" },
-  { key: "seed",    label: "시드",      icon: "🌱" },
-  { key: "bronze",  label: "브론즈",    icon: "🥉" },
+  { key: "diamond", labelKey: "projectSearch.filter.grades.diamond", icon: "💎" },
+  { key: "platinum", labelKey: "projectSearch.filter.grades.platinum", icon: "🌙" },
+  { key: "gold",    labelKey: "projectSearch.filter.grades.gold",    icon: "🥇" },
+  { key: "silver",  labelKey: "projectSearch.filter.grades.silver",  icon: "🥈" },
+  { key: "seed",    labelKey: "projectSearch.filter.grades.seed",    icon: "🌱" },
+  { key: "bronze",  labelKey: "projectSearch.filter.grades.bronze",  icon: "🥉" },
 ];
 
 const CLIENT_VERIF_LIST = [
-  { key: "본인인증 완료",   icon: "✅" },
-  { key: "사업자등록 완료", icon: "🏢" },
-  { key: "평가 우수",       icon: "🏅" },
+  { key: "본인인증 완료",   labelKey: "projectSearch.filter.verif.identity", icon: "✅" },
+  { key: "사업자등록 완료", labelKey: "projectSearch.filter.verif.business", icon: "🏢" },
+  { key: "평가 우수",       labelKey: "projectSearch.filter.verif.excellence", icon: "🏅" },
 ];
 
-const LEVEL_OPTIONS = ["전체", "주니어", "미들", "시니어"];
+const LEVEL_OPTIONS = ["all", "junior", "middle", "senior"];
 const PAGE_SIZE_OPTIONS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
 const matchColor = (n) => n >= 90 ? "#10B981" : n >= 70 ? "#3B82F6" : "#F59E0B";
 
 export default function ProjectSearch() {
+  const { t, lang } = useLanguage();
+  const tr = translations[lang]?.projectSearch || translations.en.projectSearch;
   const [allProjects, setAllProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -113,18 +110,18 @@ export default function ProjectSearch() {
   const [priceType, setPriceType]       = useState([]);
   const [grades, setGrades]             = useState([]);
   const [clientVerifs, setClientVerifs] = useState([]);
-  const [level, setLevel]               = useState("전체");
+  const [level, setLevel]               = useState("all");
   const [techInput, setTechInput]       = useState("");
   const [techs, setTechs]               = useState([]);
   const [remoteOnly, setRemoteOnly]     = useState(false);
-  const [sort, setSort]                 = useState("최신순");
+  const [sort, setSort]                 = useState("latest");
   const [sortOpen, setSortOpen]         = useState(false);
   const [page, setPage]                 = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(200);
   const [pageSizeOpen, setPageSizeOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [applied, setApplied]           = useState(
-    initialField ? { fields: [initialField], budget: 30000, priceType: [], grades: [], clientVerifs: [], level: "전체", techs: [], remoteOnly: false, query: "" } : null
+    initialField ? { fields: [initialField], budget: 30000, priceType: [], grades: [], clientVerifs: [], level: "all", techs: [], remoteOnly: false, query: "" } : null
   );
 
   /* AI 매칭 점수 */
@@ -151,7 +148,7 @@ export default function ProjectSearch() {
         const map = {};
         arr.forEach(s => { map[s.id] = { matchScore: s.matchScore, reasons: s.reasons || [] }; });
         setAiScores(map);
-        if (Object.keys(map).length > 0) setSort("AI 추천순");
+        if (Object.keys(map).length > 0) setSort("ai");
       })
       .catch((err) => {
         console.error("[ProjectSearch] AI 매칭 실패:", err);
@@ -176,7 +173,7 @@ export default function ProjectSearch() {
 
   const resetFilters = () => {
     setFields([]); setBudget(30000); setPriceType([]);
-    setGrades([]); setClientVerifs([]); setLevel("전체"); setTechs([]); setTechInput("");
+    setGrades([]); setClientVerifs([]); setLevel("all"); setTechs([]); setTechInput("");
     setRemoteOnly(false); setNameQuery(""); setApplied(null); setPage(1);
     setAiScores({}); setAiError(null);
   };
@@ -205,7 +202,7 @@ export default function ProjectSearch() {
     if (fs.length && !fs.includes(p.serviceField)) return false;
     if (gs.length && !gs.includes(p.grade)) return false;
     if (cvs.length && !cvs.every(v => p.verifications.includes(v))) return false;
-    if (lv !== "전체" && p.level !== lv) return false;
+    if (lv !== "all" && p.level !== lv) return false;
     if (ts.length && !ts.every(t => p.tags.some(tag => tag.toLowerCase().includes(t.toLowerCase())))) return false;
     const priceMin = p.budgetMin ?? NaN;
     // bg 가 슬라이더 최대값(=무제한)이면 예산 필터 미적용
@@ -229,8 +226,8 @@ export default function ProjectSearch() {
   };
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sort === "AI 추천순") return effectiveMatch(b) - effectiveMatch(a);
-    if (sort === "최신순") return b.id - a.id;
+    if (sort === "ai") return effectiveMatch(b) - effectiveMatch(a);
+    if (sort === "latest") return b.id - a.id;
     return effectiveMatch(b) - effectiveMatch(a);
   });
 
@@ -247,16 +244,16 @@ export default function ProjectSearch() {
             fontSize: 38, fontWeight: 900, margin: "0 0 10px", fontFamily: F,
             background: "linear-gradient(90deg, #7DD3FC 0%, #38BDF8 25%, #818CF8 65%, #93C5FD 100%)",
             WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-          }}>AI 맞춤 프로젝트 추천</h1>
+          }}>{t("projectSearch.heroTitle")}</h1>
           <p style={{ fontSize: 15, color: "#64748B", margin: "0 0 32px", fontFamily: F, fontWeight: 600 }}>
-            💡 필터 적용 후 질문하면, 행운이 알고리즘이 맞는 파트너를 더 딱맞게 잘 찾아드려요!
+            {t("projectSearch.heroTip")}
           </p>
           <div style={{ position: "relative", maxWidth: 680, margin: "0 auto 24px" }}>
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === "Enter" && applyFilters()}
-              placeholder="어떤 프로젝트를 찾고 계신가요?"
+              placeholder={t("projectSearch.placeholder")}
               style={{ width: "100%", height: 62, borderRadius: 999, border: "1.5px solid #E2E8F0", padding: "0 74px 0 32px", fontSize: 16, fontFamily: F, outline: "none", boxSizing: "border-box", boxShadow: "0 4px 24px rgba(0,0,0,0.10)", color: "#334155", backgroundColor: "white" }}
             />
             <button
@@ -271,15 +268,15 @@ export default function ProjectSearch() {
               : <Search size={20} color="white" />}</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, maxWidth: 860, margin: "0 auto" }}>
-            {EXAMPLES.map((ex, i) => (
+            {tr.examples.map((ex, i) => (
               <div key={i} onClick={() => setQuery(ex)}
                 style={{ background: "white", borderRadius: 14, padding: "18px 20px", textAlign: "left", cursor: "pointer", border: "1.5px solid #E2E8F0", boxShadow: "0 2px 10px rgba(0,0,0,0.06)", transition: "box-shadow 0.2s, border-color 0.2s" }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(59,130,246,0.18)"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)"; e.currentTarget.style.borderColor = "#E2E8F0"; }}
               >
-                <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, background: "#F1F5F9", borderRadius: 5, padding: "2px 8px", display: "inline-block", marginBottom: 10, fontFamily: F }}>예시</span>
+                <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, background: "#F1F5F9", borderRadius: 5, padding: "2px 8px", display: "inline-block", marginBottom: 10, fontFamily: F }}>{t("projectSearch.exampleLabel")}</span>
                 <p style={{ fontSize: 13, color: "#334155", lineHeight: 1.7, margin: 0, fontFamily: F }}>
-                  {(() => { let txt = ex; const parts = []; const kws = HIGHLIGHT_KEYWORDS[i] || [];
+                  {(() => { let txt = ex; const parts = []; const kws = (tr.highlightKeywords || [])[i] || [];
                     kws.forEach(kw => { const idx = txt.indexOf(kw); if (idx >= 0) { if (idx > 0) parts.push(txt.slice(0, idx)); parts.push(<span key={kw} style={{ color: PRIMARY, fontWeight: 700 }}>{kw}</span>); txt = txt.slice(idx + kw.length); } });
                     if (txt) parts.push(txt); return parts; })()}
                 </p>
@@ -294,23 +291,23 @@ export default function ProjectSearch() {
         {/* 필터 패널 */}
         <aside style={{ width: 280, flexShrink: 0, background: "white", borderRadius: 16, border: "1.5px solid #E2E8F0", padding: "28px 24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: "#1E293B", fontFamily: F }}>필터</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: "#1E293B", fontFamily: F }}>{t("projectSearch.filter.title")}</span>
             <button onClick={applyFilters}
               style={{ background: PRIMARY_GRAD, color: "white", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F, boxShadow: "0 2px 10px rgba(99,102,241,0.30)", transition: "box-shadow 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.55)"}
               onMouseLeave={e => e.currentTarget.style.boxShadow = "0 2px 10px rgba(99,102,241,0.30)"}
-            >필터 적용</button>
+            >{t("projectSearch.filter.apply")}</button>
           </div>
 
-          <FilterSection label="검색어">
+          <FilterSection label={t("projectSearch.filter.keyword")}>
             <div style={{ position: "relative" }}>
-              <input value={nameQuery} onChange={e => setNameQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && applyFilters()} placeholder="프로젝트 검색..."
+              <input value={nameQuery} onChange={e => setNameQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && applyFilters()} placeholder={t("projectSearch.filter.keywordPlaceholder")}
                 style={{ width: "100%", height: 38, borderRadius: 8, border: "1.5px solid #E2E8F0", padding: "0 36px 0 12px", fontSize: 13, fontFamily: F, outline: "none", boxSizing: "border-box" }} />
               <Search size={15} color="#94A3B8" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }} />
             </div>
           </FilterSection>
 
-          <FilterSection label="서비스 분야">
+          <FilterSection label={t("projectSearch.filter.serviceField")}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {SERVICE_FIELDS.map(f => (
                 <button key={f} onClick={() => toggleField(f)}
@@ -321,14 +318,14 @@ export default function ProjectSearch() {
             </div>
           </FilterSection>
 
-          <FilterSection label="예산 (비용)">
-            <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 13, color: TEAL, fontWeight: 700, fontFamily: F, marginBottom: 8 }}>{budget >= BUDGET_MAX ? "무제한" : `~ ${budget.toLocaleString()}만원`}</div>
+          <FilterSection label={t("projectSearch.filter.budgetMax")}>
+            <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 13, color: TEAL, fontWeight: 700, fontFamily: F, marginBottom: 8 }}>{budget >= BUDGET_MAX ? t("projectSearch.filter.unlimited") : `${t("projectSearch.filter.upTo")} ${budget.toLocaleString()}`}</div>
             <input type="range" min={100} max={BUDGET_MAX} step={100} value={budget}
               onChange={e => setBudget(Number(e.target.value))}
               style={{ width: "100%", accentColor: PRIMARY, cursor: "pointer" }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              {["무료/팀모임", "유료"].map(pt => (
-                <button key={pt} onClick={() => togglePrice(pt)}
+              {[{ key: "무료/팀모임", labelKey: "projectSearch.filter.free" }, { key: "유료", labelKey: "projectSearch.filter.paid" }].map(pt => (
+                <button key={pt} onClick={() => togglePrice(pt.key)}
                   style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${priceType.includes(pt) ? PRIMARY : "#E2E8F0"}`, background: priceType.includes(pt) ? "#EFF6FF" : "white", color: priceType.includes(pt) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, transition: "all 0.15s" }}>
                   {pt}
                 </button>
@@ -336,37 +333,37 @@ export default function ProjectSearch() {
             </div>
           </FilterSection>
 
-          <FilterSection label="파트너 등급">
+          <FilterSection label={t("projectSearch.filter.grade")}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {GRADE_LIST.map(({ key, label, icon }) => (
-                <button key={key} onClick={() => toggleGrade(key)}
-                  style={{ padding: "8px 0", borderRadius: 8, border: `1.5px solid ${grades.includes(key) ? PRIMARY : "#E2E8F0"}`, background: grades.includes(key) ? "#EFF6FF" : "white", color: grades.includes(key) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                  {icon} {label}
+              {GRADE_LIST.map((gl) => (
+                <button key={gl.key} onClick={() => toggleGrade(gl.key)}
+                  style={{ padding: "8px 0", borderRadius: 8, border: `1.5px solid ${grades.includes(gl.key) ? PRIMARY : "#E2E8F0"}`, background: grades.includes(gl.key) ? "#EFF6FF" : "white", color: grades.includes(gl.key) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                  {gl.icon} {t(gl.labelKey)}
                 </button>
               ))}
             </div>
           </FilterSection>
 
-          <FilterSection label="클라이언트 검증">
-            {CLIENT_VERIF_LIST.map(({ key, icon }) => (
+          <FilterSection label={t("projectSearch.filter.clientVerif")}>
+            {CLIENT_VERIF_LIST.map(({ key, icon, labelKey }) => (
               <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#334155", cursor: "pointer", marginBottom: 10, fontFamily: F }}>
                 <input type="checkbox" checked={clientVerifs.includes(key)} onChange={() => toggleVerif(key)}
                   style={{ width: 16, height: 16, accentColor: PRIMARY, cursor: "pointer" }} />
-                {icon} {key}
+                {icon} {t(labelKey)}
               </label>
             ))}
           </FilterSection>
 
-          <FilterSection label="경력 수준">
+          <FilterSection label={t("projectSearch.filter.level")}>
             <select value={level} onChange={e => setLevel(e.target.value)}
               style={{ width: "100%", height: 38, borderRadius: 8, border: "1.5px solid #E2E8F0", padding: "0 12px", fontSize: 14, fontFamily: F, outline: "none", cursor: "pointer", backgroundColor: "white", color: "#334155" }}>
-              {LEVEL_OPTIONS.map(l => <option key={l} value={l}>{l}</option>)}
+              {LEVEL_OPTIONS.map(l => <option key={l} value={l}>{t(`projectSearch.filter.level.${l}`)}</option>)}
             </select>
           </FilterSection>
 
-          <FilterSection label="필수 기술 스택">
+          <FilterSection label={t("projectSearch.filter.techStack")}>
             <input value={techInput} onChange={e => setTechInput(e.target.value)} onKeyDown={addTech}
-              placeholder="기술 입력 후 Enter (예: Vue.js)"
+              placeholder={t("projectSearch.filter.techPlaceholder")}
               style={{ width: "100%", height: 38, borderRadius: 8, border: "1.5px solid #E2E8F0", padding: "0 12px", fontSize: 13, fontFamily: F, outline: "none", boxSizing: "border-box" }} />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
               {techs.map(t => (
@@ -378,7 +375,7 @@ export default function ProjectSearch() {
           </FilterSection>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-            <span style={{ fontSize: 14, color: "#334155", fontFamily: F }}>원격 근무만 보기</span>
+            <span style={{ fontSize: 14, color: "#334155", fontFamily: F }}>{t("projectSearch.filter.remoteOnly")}</span>
             <div onClick={() => setRemoteOnly(p => !p)}
               style={{ width: 44, height: 24, borderRadius: 999, background: remoteOnly ? PRIMARY : "#CBD5E1", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
               <div style={{ position: "absolute", top: 3, left: remoteOnly ? 22 : 2, width: 18, height: 18, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.2)", transition: "left 0.2s" }} />
@@ -387,7 +384,7 @@ export default function ProjectSearch() {
 
           <button onClick={resetFilters}
             style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1.5px solid #E2E8F0", background: "white", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F }}>
-            필터 초기화
+            {t("projectSearch.filter.reset")}
           </button>
         </aside>
 
@@ -395,15 +392,15 @@ export default function ProjectSearch() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div>
-              <span style={{ fontSize: 21.3, fontWeight: 900, fontFamily: F, background: PRIMARY_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>모든 프로젝트 탐색 </span>
-              <span style={{ fontSize: 14, color: "#94A3B8", fontFamily: F }}>총 {sorted.length.toLocaleString()}개의 프로젝트가 있습니다</span>
+              <span style={{ fontSize: 21.3, fontWeight: 900, fontFamily: F, background: PRIMARY_GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{t("projectSearch.list.title")} </span>
+              <span style={{ fontSize: 14, color: "#94A3B8", fontFamily: F }}>{t("projectSearch.list.total").replace("{n}", sorted.length.toLocaleString())}</span>
               {aiLoading && (
                 <span style={{ marginLeft: 12, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#3B82F6", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 999, padding: "4px 12px", fontFamily: F }}>
-                  <Loader2 size={12} className="animate-spin" /> 행운이 AI가 찾는 중...
+                  <Loader2 size={12} className="animate-spin" /> {t("projectSearch.list.searching")}
                 </span>
               )}
               {!aiLoading && Object.keys(aiScores).length > 0 && (
-                <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700, color: "#0F766E", background: "#CCFBF1", border: "1px solid #5EEAD4", borderRadius: 999, padding: "4px 12px", fontFamily: F }}>✨ 행운이 AI 매칭 완료!</span>
+                <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700, color: "#0F766E", background: "#CCFBF1", border: "1px solid #5EEAD4", borderRadius: 999, padding: "4px 12px", fontFamily: F }}>{t("projectSearch.list.matched")}</span>
               )}
               {aiError && (
                 <span style={{ marginLeft: 12, fontSize: 12, color: "#EF4444", fontFamily: F }}>{aiError}</span>
@@ -414,7 +411,7 @@ export default function ProjectSearch() {
               <div style={{ position: "relative" }}>
                 <button onClick={() => { setPageSizeOpen(p => !p); setSortOpen(false); }}
                   style={{ display: "flex", alignItems: "center", gap: 4, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 10px", fontSize: 14, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: F }}>
-                  {itemsPerPage}개 보기 ∨
+                  {itemsPerPage} {t("common.perPage")} ∨
                 </button>
                 {pageSizeOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 120 }}>
@@ -423,7 +420,7 @@ export default function ProjectSearch() {
                         style={{ padding: "11px 16px", fontSize: 14, fontFamily: F, color: itemsPerPage === n ? PRIMARY : "#334155", fontWeight: itemsPerPage === n ? 700 : 500, cursor: "pointer", background: itemsPerPage === n ? "#EFF6FF" : "transparent" }}
                         onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                         onMouseLeave={e => e.currentTarget.style.background = itemsPerPage === n ? "#EFF6FF" : "transparent"}>
-                        {n}개 보기
+                        {n} {t("common.perPage")}
                       </div>
                     ))}
                   </div>
@@ -433,13 +430,13 @@ export default function ProjectSearch() {
               <div style={{ position: "relative" }}>
                 <button onClick={() => { setSortOpen(p => !p); setPageSizeOpen(false); }}
                   style={{ display: "flex", alignItems: "center", gap: 6, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 600, color: PRIMARY, cursor: "pointer", fontFamily: F }}>
-                  정렬: {sort} ∨
+                  {t("common.sort")}: {sort === "ai" ? t("projectSearch.list.sortAi") : sort === "latest" ? t("projectSearch.list.sortLatest") : t("projectSearch.list.sortFilter")} ∨
                 </button>
                 {sortOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 140 }}>
-                    {["AI 추천순", "최신순", "필터 추천순"].map(s => (
-                      <div key={s} onClick={() => { setSort(s); setSortOpen(false); }}
-                        style={{ padding: "11px 16px", fontSize: 14, fontFamily: F, color: sort === s ? PRIMARY : "#334155", fontWeight: sort === s ? 700 : 500, cursor: "pointer", background: sort === s ? "#EFF6FF" : "transparent" }}
+                    {[{ key: "ai", labelKey: "projectSearch.list.sortAi" }, { key: "latest", labelKey: "projectSearch.list.sortLatest" }, { key: "filter", labelKey: "projectSearch.list.sortFilter" }].map(s => (
+                      <div key={s} onClick={() => { setSort(s.key); setSortOpen(false); }}
+                        style={{ padding: "11px 16px", fontSize: 14, fontFamily: F, color: sort === s.key ? PRIMARY : "#334155", fontWeight: sort === s.key ? 700 : 500, cursor: "pointer", background: sort === s.key ? "#EFF6FF" : "transparent" }}
                         onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                         onMouseLeave={e => e.currentTarget.style.background = sort === s ? "#EFF6FF" : "transparent"}>
                         {s}
@@ -457,7 +454,7 @@ export default function ProjectSearch() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {loading ? (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#94A3B8", fontSize: 16, fontFamily: F }}>
-                  프로젝트 정보를 불러오는 중...
+                  {t("projectSearch.errors.loading")}
                 </div>
               ) : loadError ? (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#EF4444", fontSize: 15, fontFamily: F }}>
@@ -465,7 +462,7 @@ export default function ProjectSearch() {
                 </div>
               ) : pageItems.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#94A3B8", fontSize: 16, fontFamily: F }}>
-                  조건에 맞는 프로젝트가 없습니다.
+                  {t("projectSearch.errors.noResult")}
                 </div>
               ) : pageItems.map(p => {
                 const ai = aiScores[p.id];
@@ -502,13 +499,14 @@ export default function ProjectSearch() {
 
 /* ── 프로젝트 카드 ─────────────────────────────────────────── */
 function ProjectCard({ data, onSelect }) {
+  const { t } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const g = GRADE_BADGE[data.grade] || GRADE_BADGE.silver;
   const initials = data.clientId.slice(0, 2).toUpperCase();
   const isPaid = data.priceType === "유료";
   const priceTag = isPaid
-    ? { label: "유료", color: "#1D4ED8", bg: "#DBEAFE", border: "#93C5FD" }
-    : { label: "무료", color: "#065F46", bg: "#D1FAE5", border: "#6EE7B7" };
+    ? { labelKey: "projectSearch.priceType.paid", color: "#1D4ED8", bg: "#DBEAFE", border: "#93C5FD" }
+    : { labelKey: "projectSearch.priceType.free", color: "#065F46", bg: "#D1FAE5", border: "#6EE7B7" };
 
   // 찜 상태 (useStore 연동)
   const isLiked = useStore(s => s.interestedProjectIds.includes(data.id));
@@ -533,10 +531,10 @@ function ProjectCard({ data, onSelect }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: g.color, background: g.bg, border: `1px solid ${g.border}`, borderRadius: 6, padding: "3px 10px", fontFamily: F, whiteSpace: "nowrap", flexShrink: 0 }}>
-            {g.label}
+            {t(g.labelKey)}
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: priceTag.color, background: priceTag.bg, border: `1px solid ${priceTag.border}`, borderRadius: 6, padding: "3px 10px", fontFamily: F, whiteSpace: "nowrap", flexShrink: 0 }}>
-            {priceTag.label}
+            {t(priceTag.labelKey)}
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", background: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: 6, padding: "3px 10px", fontFamily: F, whiteSpace: "nowrap", flexShrink: 0 }}>
             {data.workPref}
@@ -574,8 +572,8 @@ function ProjectCard({ data, onSelect }) {
         })()}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          {data.tags.map(t => (
-            <span key={t} style={{ fontSize: 12, fontWeight: 600, color: "#475569", background: "#F1F5F9", borderRadius: 6, padding: "4px 10px", fontFamily: F }}>{t}</span>
+          {data.tags.map(tag => (
+            <span key={tag} style={{ fontSize: 12, fontWeight: 600, color: "#475569", background: "#F1F5F9", borderRadius: 6, padding: "4px 10px", fontFamily: F }}>{tag}</span>
           ))}
         </div>
 
@@ -622,7 +620,7 @@ function ProjectCard({ data, onSelect }) {
           {data.price}
         </div>
         <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, paddingRight: 42 }}>
-          기간: {data.period}
+          {t("projectSearch.period")}: {data.period}
         </div>
         <button
           onClick={() => onSelect(data)}
@@ -630,7 +628,7 @@ function ProjectCard({ data, onSelect }) {
           onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"}
           onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}
         >
-          상세보기
+          {t("common.viewDetail")}
         </button>
       </div>
     </div>
@@ -667,6 +665,7 @@ function SectionTitle({ children }) {
 
 /* ── 프로젝트 상세 ─────────────────────────────────────────── */
 function ProjectDetail({ project: p, onBack }) {
+  const { t } = useLanguage();
   const { userRole } = useStore();
   const isPartner = userRole === "partner" || userRole === "PARTNER";
   const [showConfirm, setShowConfirm] = useState(false);
@@ -690,7 +689,7 @@ function ProjectDetail({ project: p, onBack }) {
 
   const handleApply = async () => {
     if (!isPartner) {
-      alert("파트너 계정으로 로그인해주세요.");
+      alert(t("projectSearch.apply.needPartner"));
       return;
     }
     try {
@@ -748,7 +747,7 @@ function ProjectDetail({ project: p, onBack }) {
         onMouseEnter={e => e.currentTarget.style.color = PRIMARY}
         onMouseLeave={e => e.currentTarget.style.color = "#64748B"}
       >
-        ← 목록으로 돌아가기
+      ← {t("projectSearch.back")}
       </button>
 
       {/* 단일 블록 */}
@@ -757,7 +756,7 @@ function ProjectDetail({ project: p, onBack }) {
         {/* ① 배지 + 버튼 */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: g.color, background: g.bg, border: `1px solid ${g.border}`, borderRadius: 6, padding: "3px 10px", fontFamily: F }}>{g.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: g.color, background: g.bg, border: `1px solid ${g.border}`, borderRadius: 6, padding: "3px 10px", fontFamily: F }}>{t(g.labelKey)}</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: matchColor(p.match), background: matchColor(p.match) === "#10B981" ? "#D1FAE5" : matchColor(p.match) === "#3B82F6" ? "#DBEAFE" : "#FEF3C7", borderRadius: 6, padding: "3px 10px", fontFamily: F }}>{p.match}% AI Match</span>
           </div>
           {applied ? (
@@ -766,7 +765,7 @@ function ProjectDetail({ project: p, onBack }) {
               background: "#D1FAE5", color: "#065F46", fontSize: 14, fontWeight: 700,
               cursor: "default", fontFamily: F, whiteSpace: "nowrap"
             }}>
-              ✓ 지원 완료
+              ✓ {t("projectSearch.applied")}
             </button>
           ) : (
             <button onClick={() => setShowConfirm(true)} style={{
@@ -774,7 +773,7 @@ function ProjectDetail({ project: p, onBack }) {
               background: PRIMARY_GRAD, color: "white", fontSize: 14, fontWeight: 700,
               cursor: "pointer", fontFamily: F, boxShadow: "0 4px 14px rgba(99,102,241,0.3)", whiteSpace: "nowrap"
             }}>
-              프로젝트 지원하기
+              {t("projectSearch.apply.button")}
             </button>
           )}
         </div>
@@ -786,15 +785,15 @@ function ProjectDetail({ project: p, onBack }) {
             <div style={{ background: "white", borderRadius: 20, padding: "36px 32px", maxWidth: 420, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", fontFamily: F }}
               onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 28, textAlign: "center", marginBottom: 12 }}>📋</div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, color: "#0F172A", margin: "0 0 8px", textAlign: "center" }}>프로젝트 지원</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: "#0F172A", margin: "0 0 8px", textAlign: "center" }}>{t("projectSearch.applyModal.title")}</h2>
               <p style={{ fontSize: 14, color: "#475569", textAlign: "center", lineHeight: 1.7, margin: "0 0 16px" }}>
                 <strong style={{ color: "#1E293B" }}>{p.slogan}</strong><br />
-                위 프로젝트에 지원하시겠습니까?
+                {t("projectSearch.applyModal.confirm")}
               </p>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="간단한 자기소개나 지원 동기를 남겨보세요. (선택)"
+                placeholder={t("projectSearch.applyModal.messagePlaceholder")}
                 rows={4}
                 style={{
                   width: "100%", padding: "10px 12px", borderRadius: 10,
@@ -808,13 +807,13 @@ function ProjectDetail({ project: p, onBack }) {
                   flex: 1, padding: "11px 0", borderRadius: 10, border: "1.5px solid #E5E7EB",
                   background: "white", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F,
                   opacity: submitting ? 0.5 : 1,
-                }}>취소</button>
+                }}>{t("common.cancel")}</button>
                 <button onClick={handleApply} disabled={submitting} style={{
                   flex: 1, padding: "11px 0", borderRadius: 10, border: "none",
                   background: PRIMARY_GRAD, color: "white", fontSize: 14, fontWeight: 700,
                   cursor: submitting ? "not-allowed" : "pointer", fontFamily: F,
                   boxShadow: "0 4px 14px rgba(99,102,241,0.3)", opacity: submitting ? 0.7 : 1,
-                }}>{submitting ? "지원 중..." : "지원하기"}</button>
+                }}>{submitting ? t("projectSearch.applying") : t("projectSearch.applyAction")}</button>
               </div>
             </div>
           </div>
@@ -826,8 +825,8 @@ function ProjectDetail({ project: p, onBack }) {
         {/* ③ 견적·기간 박스 */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
           {[
-            { label: "예상 견적", value: p.price, big: true },
-            { label: "예상 기간", value: p.period, big: false },
+            { label: t("projectSearch.detail.estimatedCost"), value: p.price, big: true },
+            { label: t("projectSearch.detail.estimatedPeriod"), value: p.period, big: false },
           ].map(({ label, value, big }) => (
             <div key={label} style={{ background: "#F8FAFC", borderRadius: 10, border: "1px solid #E2E8F0", padding: "14px 24px", flex: "1 1 120px" }}>
               <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginBottom: 4, fontFamily: F }}>{label}</div>
@@ -839,13 +838,13 @@ function ProjectDetail({ project: p, onBack }) {
         {divider}
 
         {/* ④ 프로젝트 개요 */}
-        <SectionTitle>프로젝트 개요</SectionTitle>
+        <SectionTitle>{t("projectSearch.detail.overview")}</SectionTitle>
         {renderProjectOverview(p.desc)}
 
         {divider}
 
         {/* ⑤ 필요 기술 스택 */}
-        <SectionTitle>필요 기술 스택</SectionTitle>
+        <SectionTitle>{t("projectSearch.detail.techStack")}</SectionTitle>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {p.tags.map(t => (
             <span key={t} style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: "5px 14px", fontFamily: F }}>{t}</span>
@@ -855,7 +854,7 @@ function ProjectDetail({ project: p, onBack }) {
         {divider}
 
         {/* ⑥ 상세 요구사항 */}
-        <SectionTitle>{isOutsource ? "상세 요구사항" : "근무 환경 및 팀 구성"}</SectionTitle>
+        <SectionTitle>{isOutsource ? t("projectSearch.detail.requirements") : t("projectSearch.detail.workEnv")}</SectionTitle>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {(isOutsource ? outsourceDetails : fulltimeDetails).map((item, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
@@ -868,13 +867,13 @@ function ProjectDetail({ project: p, onBack }) {
         {divider}
 
         {/* ⑦ 근무 환경 및 모집 요건 */}
-        <SectionTitle>근무 환경 및 모집 요건</SectionTitle>
+        <SectionTitle>{t("projectSearch.detail.recruitInfo")}</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
           {[
-            { label: "모집 인원", value: headcount },
-            { label: "근무 형태", value: workStyle },
-            { label: "계약 기간", value: p.period },
-            { label: "모집 마감", value: <span style={{ color: "#EF4444", fontWeight: 700 }}>{deadline}</span> },
+            { label: t("projectSearch.detail.headcount"), value: headcount },
+            { label: t("projectSearch.detail.workType"), value: workStyle },
+            { label: t("projectSearch.detail.contractPeriod"), value: p.period },
+            { label: t("projectSearch.detail.deadline"), value: <span style={{ color: "#EF4444", fontWeight: 700 }}>{deadline}</span> },
           ].map(({ label, value }) => (
             <div key={label}>
               <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginBottom: 4, fontFamily: F }}>{label}</div>

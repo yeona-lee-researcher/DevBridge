@@ -33,7 +33,17 @@ export default defineConfig(({ command }) => ({
   } : undefined,
   build: {
     sourcemap: false, // 운영 번들에 소스맵 노출 방지
-    chunkSizeWarningLimit: 1000, // 단일 chunk 1MB까지는 경고 안 띄움 (manualChunks 로 분리는 별도 PR)
+    chunkSizeWarningLimit: 1000, // 단일 chunk 1MB까지는 경고 안 띄움
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // 라우팅 — 캐시 수명이 길고 모든 페이지에서 공유됨
+          'vendor-router': ['react-router-dom'],
+          // HTTP 클라이언트
+          'vendor-axios': ['axios'],
+        },
+      },
+    },
   },
   // 운영 빌드에서 console.* / debugger 자동 제거 — PII/디버그 정보 노출 방지.
   esbuild: {

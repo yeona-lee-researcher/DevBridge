@@ -5,6 +5,7 @@ import useStore from "../store/useStore";
 import { Phone, Mail, AtSign, Lock, Eye, EyeOff, Building2, UserSearch, Star, HelpCircle } from "lucide-react";
 import mainLogo from "../assets/main_logo.png";
 import homeBg from "../assets/home.png";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const F = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const PRIMARY_GRAD = "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #6366f1 100%)";
@@ -55,6 +56,7 @@ function MemberCard({ icon: Icon, label, selected, onClick }) {
 
 function Signup() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { setUserRole, loginUser, loginType, setLogin, setGoogleAccessToken, setUsername, signupFormData, setSignupFormData, clearSignupFormData } = useStore();
   const googleEmail = loginType === "google" ? loginUser : "";
 
@@ -94,7 +96,7 @@ function Signup() {
         setLogin("google", "google");
       }
     },
-    onError: () => alert("구글 로그인 실패"),
+    onError: () => alert(t("login.googleFail")),
   });
 
   const handleKakaoSignup = () => {
@@ -188,12 +190,12 @@ function Signup() {
           width: "100%", maxWidth: 560,
         }}>
           {/* 타이틀 */}
-          <h2 style={{ fontSize: 26, fontWeight: 800, color: "#0F172A", margin: "0 0 4px", fontFamily: F }}>DevBridge 기본 회원가입</h2>
-          <p style={{ fontSize: 13, color: "#94A3B8", margin: "0 0 20px", fontFamily: F }}>DevBridge에 오신걸 환영합니다!</p>
+          <h2 style={{ fontSize: 26, fontWeight: 800, color: "#0F172A", margin: "0 0 4px", fontFamily: F }}>{t("signup.title")}</h2>
+          <p style={{ fontSize: 13, color: "#94A3B8", margin: "0 0 20px", fontFamily: F }}>{t("signup.welcome")}</p>
 
           {/* SNS 간편 시작 */}
           <div style={{ marginBottom: 20 }}>
-            <p style={{ textAlign: "center", fontSize: 12, color: "#94A3B8", margin: "0 0 14px", fontFamily: F, fontWeight: 500 }}>SNS 계정으로 간편하게 시작하기</p>
+            <p style={{ textAlign: "center", fontSize: 12, color: "#94A3B8", margin: "0 0 14px", fontFamily: F, fontWeight: 500 }}>{t("signup.snsTitle")}</p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
               {/* Google */}
               <button onClick={() => googleSignup()} title="google" style={{ width: 46, height: 46, borderRadius: "50%", border: "1.5px solid #E5E7EB", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "box-shadow 0.15s" }} onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.12)"} onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
@@ -204,7 +206,7 @@ function Signup() {
                 <svg width="22" height="22" viewBox="0 0 48 48"><rect width="48" height="48" rx="24" fill="#FFE812"/><path fill="#3C1E1E" d="M24 12c-8.84 0-16 5.55-16 12.4 0 4.42 2.94 8.3 7.36 10.5l-1.5 5.56c-.1.37.33.67.65.46l6.5-4.3c.98.14 1.97.21 2.99.21 8.84 0 16-5.55 16-12.4S32.84 12 24 12z"/></svg>
               </button>
               {/* GitHub */}
-              <button onClick={() => alert("GitHub 로그인 API 연결 예정")} title="github" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "#24292F", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "box-shadow 0.15s" }} onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.20)"} onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+              <button onClick={() => alert(t("login.githubAlert"))} title="github" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "#24292F", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, transition: "box-shadow 0.15s" }} onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.20)"} onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
                 <svg width="22" height="22" viewBox="0 0 48 48" fill="white"><path d="M24 2C11.95 2 2 11.95 2 24c0 9.73 6.31 17.97 15.06 20.88 1.1.2 1.5-.48 1.5-1.06 0-.52-.02-1.9-.03-3.73-6.13 1.33-7.42-2.96-7.42-2.96-1-2.55-2.45-3.23-2.45-3.23-2-.37.15-.36.15-.36 2.22.16 3.39 2.28 3.39 2.28 1.97 3.37 5.16 2.4 6.42 1.83.2-1.42.77-2.4 1.4-2.95-4.9-.56-10.05-2.45-10.05-10.9 0-2.41.86-4.38 2.27-5.92-.23-.56-.98-2.8.22-5.83 0 0 1.85-.59 6.06 2.26a21.07 21.07 0 0 1 11.08 0c4.2-2.85 6.05-2.26 6.05-2.26 1.2 3.03.45 5.27.22 5.83 1.42 1.54 2.27 3.51 2.27 5.92 0 8.47-5.16 10.34-10.08 10.88.79.68 1.5 2.03 1.5 4.1 0 2.96-.03 5.35-.03 6.07 0 .59.4 1.27 1.52 1.06C39.69 41.97 46 33.73 46 24 46 11.95 36.05 2 24 2z"/></svg>
               </button>
               {/* Facebook */}
@@ -219,7 +221,7 @@ function Signup() {
             {/* 구분선 */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 18 }}>
               <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
-              <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: F, whiteSpace: "nowrap" }}>또는 직접 입력</span>
+              <span style={{ fontSize: 11, color: "#94A3B8", fontFamily: F, whiteSpace: "nowrap" }}>{t("signup.orDirect")}</span>
               <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
             </div>
           </div>
@@ -238,19 +240,19 @@ function Signup() {
                 readOnly={!!googleEmail}
               />
               {googleEmail && (
-                <p style={{ fontSize: 11, color: "#10B981", margin: "4px 0 0", fontFamily: F }}>✓ 구글 계정 이메일로 등록되었습니다</p>
+                <p style={{ fontSize: 11, color: "#10B981", margin: "4px 0 0", fontFamily: F }}>{t("signup.googleEmail")}</p>
               )}
             </div>
 
             {/* 유선 연락처 + 생년월일 */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <LBL>유선 연락처 *</LBL>
+                <LBL>{t("signup.phone")}</LBL>
                 <InputIcon icon={Phone} placeholder="+82 (10)-0000-0000" value={form.phone}
                   onChange={v => set("phone", v.replace(/[^0-9+\-() ]/g, ""))} />
               </div>
               <div>
-                <LBL>생년월일</LBL>
+                <LBL>{t("signup.birthday")}</LBL>
                 <InputIcon icon={Mail} type="date" placeholder="YYYY-MM-DD" value={form.birthdate}
                   onChange={v => set("birthdate", v)} />
               </div>
@@ -258,22 +260,22 @@ function Signup() {
 
             {/* 추가 연락처 */}
             <div>
-              <LBL>추가 연락처 Email</LBL>
+              <LBL>{t("signup.additionalEmail")}</LBL>
               <InputIcon icon={Mail} type="email" placeholder="name@company.com" value={form.extraEmail}
                 onChange={v => set("extraEmail", v)} />
             </div>
 
             {/* 아이디 */}
             <div>
-              <LBL>아이디 *</LBL>
-              <InputIcon icon={AtSign} placeholder="아이디" value={form.username}
+              <LBL>{t("signup.userId")}</LBL>
+              <InputIcon icon={AtSign} placeholder={t("signup.userIdPlaceholder")} value={form.username}
                 onChange={v => set("username", v)} />
             </div>
 
             {/* 비밀번호 + 확인 */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <LBL>비밀번호 *</LBL>
+                <LBL>{t("signup.password")}</LBL>
                 <InputIcon
                   icon={Lock}
                   type={showPw ? "text" : "password"}
@@ -288,7 +290,7 @@ function Signup() {
                 />
               </div>
               <div>
-                <LBL>비밀번호 확인 *</LBL>
+                <LBL>{t("signup.confirmPassword")}</LBL>
                 <InputIcon
                   icon={Lock}
                   type={showPwC ? "text" : "password"}
@@ -302,22 +304,22 @@ function Signup() {
                   }
                 />
                 {form.pw && form.pw.length < 8 && (
-                  <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>비밀번호는 8자 이상이어야 합니다</p>
+                  <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>{t("signup.pwMinLength")}</p>
                 )}
                 {form.pwConfirm && form.pw !== form.pwConfirm && (
-                  <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>비밀번호가 일치하지 않습니다</p>
+                  <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>{t("signup.pwMismatch")}</p>
                 )}
               </div>
             </div>
 
             {/* 회원 유형 */}
             <div>
-              <LBL>회원 유형 *</LBL>
+              <LBL>{t("signup.memberType")}</LBL>
               <div style={{ display: "flex", gap: 12 }}>
-                <MemberCard icon={Building2} label="클라이언트"
+                <MemberCard icon={Building2} label={t("signup.client")}
                   selected={form.memberType === "클라이언트"}
                   onClick={() => set("memberType", "클라이언트")} />
-                <MemberCard icon={UserSearch} label="파트너"
+                <MemberCard icon={UserSearch} label={t("signup.partner")}
                   selected={form.memberType === "파트너"}
                   onClick={() => set("memberType", "파트너")} />
               </div>
@@ -325,7 +327,7 @@ function Signup() {
 
             {/* 업종/서비스 분야 (industry) — 드롭다운에서 선택 또는 직접 입력 */}
             <div>
-              <LBL>업종/서비스 분야 *</LBL>
+              <LBL>{t("signup.industry")}</LBL>
               <select
                 value={form.industry}
                 onChange={e => set("industry", e.target.value)}
@@ -336,7 +338,7 @@ function Signup() {
                   color: form.industry ? "#111827" : "#9CA3AF",
                 }}
               >
-                <option value="">업종을 선택해 주세요</option>
+                <option value="">{t("signup.industryDefault")}</option>
                 {INDUSTRY_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
@@ -345,7 +347,7 @@ function Signup() {
                 <div style={{ marginTop: 8 }}>
                   <InputIcon
                     icon={Star}
-                    placeholder="업종을 직접 입력해 주세요 (예: 부동산 플랫폼)"
+                    placeholder={t("signup.industryCustom")}
                     value={form.industryCustom || ""}
                     onChange={v => set("industryCustom", v)}
                   />
@@ -355,7 +357,7 @@ function Signup() {
 
             {/* 관심 분야/주요 기술 */}
             <div>
-              <LBL>관심 분야/주요 기술 *</LBL>
+              <LBL>{t("signup.interests")}</LBL>
               <InputIcon icon={Star} placeholder="react" value={form.skills}
                 onChange={v => set("skills", v)} />
             </div>
@@ -373,7 +375,7 @@ function Signup() {
               ...(isValid ? ACTIVE_STYLE : DISABLED_STYLE),
             }}
           >
-            다음 단계 →
+            {t("signup.nextStep")}
           </button>
 
           <p style={{ textAlign: "center", fontSize: 13, color: "#64748B", marginTop: 16, fontFamily: F }}>

@@ -6,17 +6,18 @@ import heroDefault from "../assets/hero_default.png";
 import useStore from "../store/useStore";
 import { profileApi } from "../api/profile.api";
 import { authApi } from "../api/auth.api";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const PRIMARY_GRAD = "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)";
 
-const NAV_ITEMS = [
-  { name: "프로젝트 등록", path: "/project_register" },
-  { name: "프로젝트 찾기", path: "/project_search" },
-  { name: "클라이언트 찾기", path: "/client_search" },
-  { name: "파트너 찾기", path: "/partner_search" },
-  { name: "포트폴리오", path: "/partner_portfolio" },
-  { name: "솔루션 마켓", path: "/solution_market" },
-  { name: "이용 가이드 센터", path: "/usage_guide" },
+const NAV_PATHS = [
+  { key: "registerProject", path: "/project_register" },
+  { key: "findProject",     path: "/project_search" },
+  { key: "findClient",      path: "/client_search" },
+  { key: "findPartner",     path: "/partner_search" },
+  { key: "portfolio",       path: "/partner_portfolio" },
+  { key: "solutionMarket",  path: "/solution_market" },
+  { key: "usageGuide",      path: "/usage_guide" },
 ];
 
 const BASE_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -92,7 +93,7 @@ function NavItem({ item, onClickOverride }) {
           border: "none", cursor: "pointer", fontFamily: BASE_FONT,
         }}
       >
-        {item.name}
+        {item.label}
       </button>
     );
   }
@@ -112,7 +113,7 @@ function NavItem({ item, onClickOverride }) {
         transition: "all 0.15s ease",
       }}
     >
-      {item.name}
+      {item.label}
     </Link>
   );
 }
@@ -120,7 +121,13 @@ function NavItem({ item, onClickOverride }) {
 function Header_partner() {
   const navigate = useNavigate();
   const { user, loginUser, clearUser, clearLogin } = useStore();
+  const { t } = useLanguage();
   const [dbHero, setDbHero] = useState(null);
+
+  const navItems = NAV_PATHS.map(item => ({
+    ...item,
+    label: t(`nav.${item.key}`),
+  }));
 
   useEffect(() => {
     let cancelled = false;
@@ -218,12 +225,14 @@ function Header_partner() {
             >×</button>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🤝</div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: "0 0 14px", fontFamily: BASE_FONT, lineHeight: 1.4 }}>
-              파트너도 무료 프로젝트를<br />등록할 수 있어요!
+              {t("partnerModal.title").split("\n").map((line, i) => (
+                <span key={i}>{line}{i === 0 && <br />}</span>
+              ))}
             </h2>
             <p style={{ fontSize: 14, color: "#6B7280", margin: "0 0 32px", fontFamily: BASE_FONT, lineHeight: 1.8 }}>
-              <strong style={{ color: "#2563EB" }}>‘파트너’</strong>는 무료 프로젝트(외주)만 등록할 수 있어요!<br />
-              경험과 동료를 찾기에 좋은 기회입니다.<br />
-              진행하시겠어요?
+              {t("partnerModal.desc").split("\n").map((line, i, arr) => (
+                <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+              ))}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <button
@@ -235,7 +244,7 @@ function Header_partner() {
                   boxShadow: "0 4px 18px rgba(99,102,241,0.35)",
                 }}
               >
-                무료 프로젝트 등록하기
+                {t("partnerModal.register")}
               </button>
               <button
                 onClick={() => { setShowPartnerModal(false); navigate("/project_search"); }}
@@ -246,7 +255,7 @@ function Header_partner() {
                   cursor: "pointer", fontFamily: BASE_FONT,
                 }}
               >
-                프로젝트 찾기
+                {t("partnerModal.find")}
               </button>
             </div>
           </div>
@@ -280,13 +289,13 @@ function Header_partner() {
           }}>DevBridge</span>
         </Link>
 
-        {/* 네비게이션 */}
+        {/* Navigation */}
         <nav style={{ display: "flex", gap: 4, flex: 1 }}>
-          {NAV_ITEMS.map(item => (
+          {navItems.map(item => (
             <NavItem
-              key={item.name}
+              key={item.key}
               item={item}
-              onClickOverride={item.name === "프로젝트 등록" ? () => setShowPartnerModal(true) : undefined}
+              onClickOverride={item.key === "registerProject" ? () => setShowPartnerModal(true) : undefined}
             />
           ))}
         </nav>
@@ -335,13 +344,13 @@ function Header_partner() {
                   zIndex: 200,
                 }}>
                 {[
-                  { label: "관리 대시보드",    path: "/partner_dashboard" },
-                  { label: "마이 포트폴리오", path: "/partner_portfolio" },
-                  { label: "파트너 프로필 관리", path: "/partner_profile" },
-                  { label: "마이 페이지 정보", path: "/mypage" },
+                  { labelKey: "nav.dashboard",     path: "/partner_dashboard" },
+                  { labelKey: "nav.myPortfolio",   path: "/partner_portfolio" },
+                  { labelKey: "nav.partnerProfile",path: "/partner_profile" },
+                  { labelKey: "nav.myPage",         path: "/mypage" },
                 ].map(item => (
                   <DropMenuItem
-                    key={item.label} label={item.label}
+                    key={item.labelKey} label={t(item.labelKey)}
                     onClick={() => { navigate(item.path); setProfileDropOpen(false); }}
                   />
                 ))}
@@ -349,7 +358,7 @@ function Header_partner() {
                 <div style={{ height: 1, backgroundColor: "#F3F4F6", margin: "8px 0" }} />
 
                 <DropMenuItem
-                  label="로그아웃"
+                  label={t("nav.logout")}
                   onClick={handleLogout}
                   color="#EF4444"
                 />

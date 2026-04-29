@@ -4,52 +4,34 @@ import { Palette, Search } from "lucide-react";
 import Header_home from "../components/Header_home";
 import heroImg from "../assets/home.png";
 import useStore from "../store/useStore";
+import { useLanguage } from "../i18n/LanguageContext";
+import translations from "../i18n/translations";
 
 const TEAL = "#0CA5A0";
 const NAVY = "#0F2C52";
 const BLUE = "#2563EB";
 
-const CATEGORIES = [
-  { emoji: "🖥️",  label: "IT 서비스",   dbValue: "SaaS",        bg: "#FFF8F8", color: "#E87A7A", glow: "#FFB3B3" },
-  { Icon: Palette, label: "디자인/기획", dbValue: "디자인/기획", bg: "#FFFAF5", color: "#F5A623", glow: "#FFD699" },
-  { emoji: "💳",  label: "핀테크",      dbValue: "핀테크",      bg: "#F7FFF2", color: "#7BC67E", glow: "#B8F0B0" },
-  { emoji: "🌐",  label: "웹사이트",    dbValue: "웹사이트",    bg: "#F0F9FF", color: "#5BA8F5", glow: "#A8D4FF" },
-  { emoji: "🤖",  label: "AI",          dbValue: "AI",          bg: "#F8F6FF", color: "#8B7BF5", glow: "#C4BBFF" },
-  { emoji: "🛍️", label: "커머스",      dbValue: "커머스",      bg: "#F0FFF9", color: "#4DBBA0", glow: "#A0F0D8" },
-  { emoji: "☁️",  label: "클라우드",    dbValue: "클라우드",    bg: "#F8F8FF", color: "#A0A0CC", glow: "#D0D0FF" },
-  { emoji: "📱",  label: "앱 제작",     dbValue: "모바일",      bg: "#F5F0FF", color: "#8C6BF0", glow: "#C8B3FF" },
-  { emoji: "🛠️",  label: "유지보수",    dbValue: "유지보수",    bg: "#FFF6FA", color: "#E873A0", glow: "#FFB3D1" },
+const CATEGORIES_STYLE = [
+  { key: "itService",   emoji: "🖥️",  dbValue: "SaaS",        bg: "#FFF8F8", color: "#E87A7A", glow: "#FFB3B3" },
+  { key: "design",      Icon: Palette, dbValue: "디자인/기획", bg: "#FFFAF5", color: "#F5A623", glow: "#FFD699" },
+  { key: "fintech",     emoji: "💳",  dbValue: "핀테크",      bg: "#F7FFF2", color: "#7BC67E", glow: "#B8F0B0" },
+  { key: "website",     emoji: "🌐",  dbValue: "웹사이트",    bg: "#F0F9FF", color: "#5BA8F5", glow: "#A8D4FF" },
+  { key: "ai",          emoji: "🤖",  dbValue: "AI",          bg: "#F8F6FF", color: "#8B7BF5", glow: "#C4BBFF" },
+  { key: "commerce",    emoji: "🛍️", dbValue: "커머스",      bg: "#F0FFF9", color: "#4DBBA0", glow: "#A0F0D8" },
+  { key: "cloud",       emoji: "☁️",  dbValue: "클라우드",    bg: "#F8F8FF", color: "#A0A0CC", glow: "#D0D0FF" },
+  { key: "mobile",      emoji: "📱",  dbValue: "모바일",      bg: "#F5F0FF", color: "#8C6BF0", glow: "#C8B3FF" },
+  { key: "maintenance", emoji: "🛠️",  dbValue: "유지보수",    bg: "#FFF6FA", color: "#E873A0", glow: "#FFB3D1" },
 ];
 
-const EXAMPLES = [
-  "AI 챗봇으로 고객 문의를 자동화 하고 싶습니다.",
-  "중개 플랫폼을 만들고 싶어요. 예약·결제 기능 통합 사례와 비용을 받고 싶습니다.",
-  "AI 추천 시스템을 활용해 고객별 맞춤형 상품을 제안하고 싶습니다.",
+const PROJECTS_IMAGES = [
+  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&q=80",
+  "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80",
+  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
 ];
-const HIGHLIGHT_KEYWORDS = [["AI 챗봇", "자동화"], ["중개 플랫폼", "예약·결제"], ["AI 추천 시스템", "맞춤형"]];
-
-const PROJECTS = [
-  {
-    badge: "금융/핀테크",
-    title: "AI 기반 통합 자산 관리 대시보드 구축",
-    desc: "복잡한 금융 데이터를 한눈에 파악할 수 있는 직관적인 UI와 실시간 알림 시스템을 포함한 웹 서비스입니다.",
-    tags: ["#React", "#Node.js", "#AI"],
-    image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&q=80",
-  },
-  {
-    badge: "커머스",
-    title: "하이엔드 리빙 편집숍 모바일 앱 런칭",
-    desc: "고감도 브랜딩이 적용된 커머스 플랫폼으로, AR 가구 배치 기능과 빠른 결제 모듈을 구현하였습니다.",
-    tags: ["#Flutter", "#Firebase", "#UI/UX"],
-    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80",
-  },
-  {
-    badge: "SaaS/업무",
-    title: "엔터프라이즈 인사 관리 솔루션 현대화",
-    desc: "노후화된 사내 ERP 시스템을 클라우드 기반의 최신 아키텍처로 전환하여 업무 효율을 40% 개선했습니다.",
-    tags: ["#Vue.js", "#AWS", "#Spring"],
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
-  },
+const PROJECTS_TAGS = [
+  ["#React", "#Node.js", "#AI"],
+  ["#Flutter", "#Firebase", "#UI/UX"],
+  ["#Vue.js", "#AWS", "#Spring"],
 ];
 
 const PARTNERS = ["Google", "Apple", "Microsoft", "Amazon", "Meta", "NVIDIA", "Tesla", "Samsung", "TSMC", "Oracle", "SAP", "Salesforce", "Adobe", "Intel", "IBM", "Cisco", "Qualcomm", "Netflix", "Spotify", "Shopify", "Stripe", "Uber", "Airbnb", "LinkedIn", "GitHub", "Slack", "Zoom", "Notion", "Figma", "Vercel", "TOSS", "Coupang", "HYPERCONNECT", "FASTFIVE", "yanolja", "SOCAR", "zigbang", "MyRealTrip"];
@@ -59,17 +41,24 @@ const BASE_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', 
 function Home() {
   const navigate = useNavigate();
   const { loginUser, userRole } = useStore();
+  const { t, lang } = useLanguage();
   const [searchValue, setSearchValue] = useState("");
   const [hoveredCat, setHoveredCat] = useState(null);
   const [hoveredProject, setHoveredProject] = useState(null);
 
+  const tr = translations[lang]?.home || translations.en.home;
+  const examples = tr.aiSection.examples;
+  const highlightKeywords = tr.aiSection.highlightKeywords || [];
+  const projects = tr.projectSection.projects;
+  const categories = CATEGORIES_STYLE.map(cat => ({ ...cat, label: t(`home.categories.${cat.key}`) }));
+
   const handleSearch = () => {
     if (!searchValue.trim()) return;
     const q = searchValue.trim();
-    const partnerKw = ['파트너', '개발자', '디자이너', '프리랜서', '팀원', '엔지니어'];
-    const clientKw = ['클라이언트', '발주', '고객사', '기업 찾', '회사 찾'];
-    if (partnerKw.some(k => q.includes(k))) navigate(`/partner_search?q=${encodeURIComponent(q)}`);
-    else if (clientKw.some(k => q.includes(k))) navigate(`/client_search?q=${encodeURIComponent(q)}`);
+    const partnerKw = ['partner', 'developer', 'designer', 'freelancer', 'engineer', '파트너', '개발자', '디자이너', '프리랜서'];
+    const clientKw = ['client', 'company', '클라이언트', '발주', '고객사'];
+    if (partnerKw.some(k => q.toLowerCase().includes(k.toLowerCase()))) navigate(`/partner_search?q=${encodeURIComponent(q)}`);
+    else if (clientKw.some(k => q.toLowerCase().includes(k.toLowerCase()))) navigate(`/client_search?q=${encodeURIComponent(q)}`);
     else navigate(`/project_search?q=${encodeURIComponent(q)}`);
   };
 
@@ -89,7 +78,7 @@ function Home() {
     } else if (userRole === "client") {
       navigate("/project_register");
     } else {
-      alert("프로젝트 등록은 클라이언트 회원만 이용 가능합니다.");
+      alert(t("home.alertClientOnly"));
     }
   };
 
@@ -122,7 +111,7 @@ function Home() {
               textShadow: "0 2px 16px rgba(0,0,0,0.25)",
               fontFamily: BASE_FONT,
             }}>
-              좋은 포트폴리오가<br />좋은 기회를 만든다.
+              {t("home.heroTitle1")}<br />{t("home.heroTitle2")}
             </h1>
             {/* 반투명 배경 pill 부제목 */}
             <div style={{
@@ -139,7 +128,7 @@ function Home() {
                 fontSize: 14, color: "rgba(255,255,255,0.95)",
                 fontFamily: BASE_FONT, fontWeight: 500,
               }}>
-                신뢰 데이터를 쌓으며 성장하는 IT 협업 라운지 🌿
+                {t("home.heroSubtitle")}
               </span>
             </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
@@ -154,7 +143,7 @@ function Home() {
                 onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
                 onMouseLeave={e => e.currentTarget.style.opacity = "1"}
               >
-                포트폴리오 업그레이드
+                {t("home.btnUpgrade")}
               </button>
               <button
                 onClick={handleProjectRegister}
@@ -167,7 +156,7 @@ function Home() {
                 onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
                 onMouseLeave={e => e.currentTarget.style.opacity = "1"}
               >
-                프로젝트 등록하기
+                {t("home.btnRegisterProject")}
               </button>
             </div>
           </div>
@@ -186,18 +175,18 @@ function Home() {
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
           }}>
-            비즈니스에 필요한 모든 IT 프로젝트를 진행할 수 있어요
+            {t("home.heroDesc")}
           </p>
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(9, 1fr)",
             gap: 12,
           }}>
-            {CATEGORIES.map((cat, i) => {
+          {categories.map((cat, i) => {
               const isHover = hoveredCat === i;
               return (
                 <div
-                  key={cat.label}
+                  key={cat.key}
                   onMouseEnter={() => setHoveredCat(i)}
                   onMouseLeave={() => setHoveredCat(null)}
                   onClick={() => navigate(`/project_search?field=${encodeURIComponent(cat.dbValue)}`)}
@@ -247,14 +236,14 @@ function Home() {
             display: "inline-block",
             color: "#6366F1", fontWeight: 700, fontSize: 13,
             marginBottom: 14,
-          }}>유사사례 검색 AI</span>
+          }}>{t("home.aiSection.title")}</span>
           <h2 style={{
             fontSize: 30, fontWeight: 900,
             marginBottom: 36, lineHeight: 1.35, fontFamily: BASE_FONT,
             background: "linear-gradient(90deg, #7DD3FC 0%, #38BDF8 25%, #818CF8 65%, #93C5FD 100%)",
             WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
           }}>
-            AI가 예상 견적부터 유사 사례까지 알려드려요
+            {t("home.aiSection.subtitle")}
           </h2>
 
           {/* 검색창 */}
@@ -268,7 +257,7 @@ function Home() {
               value={searchValue}
               onChange={e => setSearchValue(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
-              placeholder="만들고 싶은 프로젝트 아이디어를 자유롭게 입력해 주세요..."
+              placeholder={t("home.aiSection.placeholder")}
               style={{
                 flex: 1, padding: "16px 24px",
                 border: "none", outline: "none",
@@ -297,7 +286,7 @@ function Home() {
             display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16,
             maxWidth: 880, margin: "0 auto",
           }}>
-            {EXAMPLES.map((ex, i) => (
+            {examples.map((ex, i) => (
               <div
                 key={i}
                 onClick={() => setSearchValue(ex)}
@@ -305,9 +294,9 @@ function Home() {
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(59,130,246,0.18)"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)"; e.currentTarget.style.borderColor = "#E2E8F0"; }}
               >
-                <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, background: "#F1F5F9", borderRadius: 5, padding: "2px 8px", display: "inline-block", marginBottom: 10, fontFamily: BASE_FONT }}>예시</span>
+                <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, background: "#F1F5F9", borderRadius: 5, padding: "2px 8px", display: "inline-block", marginBottom: 10, fontFamily: BASE_FONT }}>{t("home.aiSection.exampleLabel")}</span>
                 <p style={{ fontSize: 13, color: "#334155", lineHeight: 1.7, margin: 0, fontFamily: BASE_FONT }}>
-                  {(() => { let txt = ex; const parts = []; const kws = HIGHLIGHT_KEYWORDS[i] || [];
+                  {(() => { let txt = ex; const parts = []; const kws = highlightKeywords[i] || [];
                     kws.forEach(kw => { const idx = txt.indexOf(kw); if (idx >= 0) { if (idx > 0) parts.push(txt.slice(0, idx)); parts.push(<span key={kw} style={{ color: "#3B82F6", fontWeight: 700 }}>{kw}</span>); txt = txt.slice(idx + kw.length); } });
                     if (txt) parts.push(txt); return parts; })()}
                 </p>
@@ -321,14 +310,14 @@ function Home() {
 
         {/* ── PROJECTS ── */}
         <section style={{ marginBottom: 80, paddingTop: 96 }}>
-          <p style={{ color: "#6366F1", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>우수 프로젝트</p>
+          <p style={{ color: "#6366F1", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{t("home.projectSection.title")}</p>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28 }}>
             <div>
               <h2 style={{ fontSize: 23, fontWeight: 900, marginBottom: 8, fontFamily: BASE_FONT, color: "#1E293B" }}>
-                <span style={{ background: "linear-gradient(90deg, #7DD3FC 0%, #38BDF8 25%, #818CF8 65%, #93C5FD 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>DevBridge</span>에서 진행한 프로젝트들을 확인해 보세요
+                <span style={{ background: "linear-gradient(90deg, #7DD3FC 0%, #38BDF8 25%, #818CF8 65%, #93C5FD 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>DevBridge</span>{t("home.projectSection.subtitle")}
               </h2>
               <p style={{ fontSize: 14, color: "#6B7280" }}>
-                풍부한 경험을 가진 파트너들의 성공 사례를 통해 당신의 프로젝트 아이디어를 구체화하세요.
+                {t("home.projectSection.desc")}
               </p>
             </div>
             <button
@@ -341,7 +330,7 @@ function Home() {
                 fontFamily: BASE_FONT,
               }}
             >
-              전체 보기 <span style={{ fontSize: 16 }}>›</span>
+              {t("home.projectSection.viewAll")} <span style={{ fontSize: 16 }}>›</span>
             </button>
           </div>
 
@@ -363,7 +352,7 @@ function Home() {
               >
                 <div style={{ position: "relative", height: 200, overflow: "hidden" }}>
                   <img
-                    src={proj.image}
+                    src={PROJECTS_IMAGES[i]}
                     alt={proj.title}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
@@ -388,7 +377,7 @@ function Home() {
                     {proj.desc}
                   </p>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {proj.tags.map(tag => (
+                    {PROJECTS_TAGS[i].map(tag => (
                       <span key={tag} style={{
                         fontSize: 12, color: TEAL, fontWeight: 600,
                       }}>{tag}</span>
@@ -412,7 +401,7 @@ function Home() {
           textAlign: "center", fontSize: 12, color: "#9CA3AF",
           marginBottom: 32, fontFamily: BASE_FONT,
         }}>
-          100,000+ 기업이 믿고 사용 중인 세계 IT 성장 플랫폼
+          {t("home.trustBar")}
         </p>
         <style>{`@keyframes marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
         <div style={{ overflow: "hidden", maxWidth: 1200, margin: "0 auto" }}>
