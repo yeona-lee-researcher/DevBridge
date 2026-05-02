@@ -117,7 +117,7 @@ export default function ProjectSearch() {
   const [sort, setSort]                 = useState("latest");
   const [sortOpen, setSortOpen]         = useState(false);
   const [page, setPage]                 = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(200);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
   const [pageSizeOpen, setPageSizeOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [applied, setApplied]           = useState(
@@ -325,9 +325,9 @@ export default function ProjectSearch() {
               style={{ width: "100%", accentColor: PRIMARY, cursor: "pointer" }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               {[{ key: "무료/팀모임", labelKey: "projectSearch.filter.free" }, { key: "유료", labelKey: "projectSearch.filter.paid" }].map(pt => (
-                <button key={pt} onClick={() => togglePrice(pt.key)}
-                  style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${priceType.includes(pt) ? PRIMARY : "#E2E8F0"}`, background: priceType.includes(pt) ? "#EFF6FF" : "white", color: priceType.includes(pt) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, transition: "all 0.15s" }}>
-                  {pt}
+                <button key={pt.key} onClick={() => togglePrice(pt.key)}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: `1.5px solid ${priceType.includes(pt.key) ? PRIMARY : "#E2E8F0"}`, background: priceType.includes(pt.key) ? "#EFF6FF" : "white", color: priceType.includes(pt.key) ? PRIMARY : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F, transition: "all 0.15s" }}>
+                  {t(pt.labelKey)}
                 </button>
               ))}
             </div>
@@ -435,11 +435,11 @@ export default function ProjectSearch() {
                 {sortOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, background: "white", border: "1.5px solid #E2E8F0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 140 }}>
                     {[{ key: "ai", labelKey: "projectSearch.list.sortAi" }, { key: "latest", labelKey: "projectSearch.list.sortLatest" }, { key: "filter", labelKey: "projectSearch.list.sortFilter" }].map(s => (
-                      <div key={s} onClick={() => { setSort(s.key); setSortOpen(false); }}
+                      <div key={s.key} onClick={() => { setSort(s.key); setSortOpen(false); }}
                         style={{ padding: "11px 16px", fontSize: 14, fontFamily: F, color: sort === s.key ? PRIMARY : "#334155", fontWeight: sort === s.key ? 700 : 500, cursor: "pointer", background: sort === s.key ? "#EFF6FF" : "transparent" }}
                         onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                        onMouseLeave={e => e.currentTarget.style.background = sort === s ? "#EFF6FF" : "transparent"}>
-                        {s}
+                        onMouseLeave={e => e.currentTarget.style.background = sort === s.key ? "#EFF6FF" : "transparent"}>
+                        {t(s.labelKey)}
                       </div>
                     ))}
                   </div>
@@ -905,7 +905,7 @@ function ProjectDetail({ project: p, onBack }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#1E293B", fontFamily: F }}>@{p.clientId}</div>
-            <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, marginTop: 2 }}>클라이언트 신뢰도 4.9/5.0</div>
+            <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: F, marginTop: 2 }}>{t("projectSearch.detail.clientTrust")} 4.9/5.0</div>
             <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
               {p.verifications.map((v, i) => (
                 <span key={i} style={{ fontSize: 11, fontWeight: 600, color: "#059669", background: "#ECFDF5", borderRadius: 999, padding: "3px 10px", fontFamily: F }}>{v}</span>
@@ -925,13 +925,13 @@ function ProjectDetail({ project: p, onBack }) {
 ───────────────────────────────────────────────────────── */
 // DB(project_modules.module_key) 표준 키와 일치시킴.
 const CONTRACT_TABS = [
-  { key: "scope",       label: "1. 작업 범위" },
-  { key: "deliverable", label: "2. 전달 결과물" },
-  { key: "schedule",    label: "3. 일정" },
-  { key: "payment",     label: "4. 결제" },
-  { key: "revision",    label: "5. 수정" },
-  { key: "completion",  label: "6. 완료" },
-  { key: "terms",       label: "7. 특약" },
+  { key: "scope" },
+  { key: "deliverable" },
+  { key: "schedule" },
+  { key: "payment" },
+  { key: "revision" },
+  { key: "completion" },
+  { key: "terms" },
 ];
 
 // 프로젝트 등록 폼은 일부 키를 다른 이름으로 보냄 (deliverables=복수, specialTerms).
@@ -951,15 +951,18 @@ function pickTermData(terms, key) {
 
 function ContractTermsTabs({ terms }) {
   const [active, setActive] = useState("scope");
+  const { lang, t } = useLanguage();
+  const tabLabels = (translations[lang] || translations.en)?.projectSearch?.detail?.contractTabLabels
+    || ("1. Scope,2. Deliverables,3. Schedule,4. Payment,5. Revisions,6. Completion,7. Special Terms").split(",");
   if (!terms || typeof terms !== "object" || Object.keys(terms).length === 0) {
     return (
       <div>
-        <SectionTitle>7가지 세부 협의사항</SectionTitle>
+        <SectionTitle>{t("projectSearch.detail.contractTermsTitle")}</SectionTitle>
         <div style={{
           padding: "20px 24px", background: "#F8FAFC", border: "1px dashed #CBD5E1",
           borderRadius: 12, fontSize: 13, color: "#64748B", fontFamily: F, textAlign: "center",
         }}>
-          이 프로젝트는 아직 세부 협의사항이 등록되지 않았어요.
+          {t("projectSearch.detail.contractTermsEmpty")}
         </div>
       </div>
     );
@@ -967,17 +970,17 @@ function ContractTermsTabs({ terms }) {
 
   return (
     <div>
-      <SectionTitle>7가지 세부 협의사항</SectionTitle>
+      <SectionTitle>{t("projectSearch.detail.contractTermsTitle")}</SectionTitle>
 
       {/* 탭 헤더 */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14, borderBottom: "1px solid #E2E8F0", paddingBottom: 0 }}>
-        {CONTRACT_TABS.map((t) => {
-          const has = pickTermData(terms, t.key) != null;
-          const isActive = active === t.key;
+        {CONTRACT_TABS.map((tab, idx) => {
+          const has = pickTermData(terms, tab.key) != null;
+          const isActive = active === tab.key;
           return (
             <button
-              key={t.key}
-              onClick={() => setActive(t.key)}
+              key={tab.key}
+              onClick={() => setActive(tab.key)}
               style={{
                 padding: "9px 14px", border: "none", background: "none",
                 borderBottom: isActive ? "2.5px solid #3B82F6" : "2.5px solid transparent",
@@ -985,7 +988,7 @@ function ContractTermsTabs({ terms }) {
                 fontSize: 13, fontWeight: isActive ? 800 : 600, fontFamily: F,
                 cursor: "pointer", marginBottom: -1,
               }}
-            >{t.label}{!has && " ·"}</button>
+            >{tabLabels[idx]}{!has && " ·"}</button>
           );
         })}
       </div>
@@ -1009,8 +1012,9 @@ function ContractTermsTabs({ terms }) {
 ───────────────────────────────────────────────────────── */
 function ContractTermInlineModal({ termKey, data }) {
   const Comp = CONTRACT_MODAL_BY_KEY[termKey];
+  const { t } = useLanguage();
   if (!data) {
-    return <div style={{ fontSize: 13, color: "#94A3B8" }}>이 항목은 아직 입력되지 않았어요.</div>;
+    return <div style={{ fontSize: 13, color: "#94A3B8" }}>{t("projectSearch.detail.contractTermsNoData")}</div>;
   }
   // 모듈에서 사용 가능한 구조화된 키가 하나라도 있으면 모달로 렌더, 아니면 줄글 fallback
   const structuredKeys = ["included","excluded","memo","deliverables","formats","delivery","notes","phases","milestones","total","payments","freeItems","paidItems","items","steps","terms"];
@@ -1019,7 +1023,7 @@ function ContractTermInlineModal({ termKey, data }) {
     if (data && typeof data === "object" && data.text) {
       return <Prose text={String(data.text)} />;
     }
-    return <div style={{ fontSize: 13, color: "#94A3B8" }}>표시할 데이터가 없어요.</div>;
+    return <div style={{ fontSize: 13, color: "#94A3B8" }}>{t("projectSearch.detail.contractTermsNoData")}</div>;
   }
   return (
     <Comp
