@@ -508,9 +508,11 @@ public class ProjectService {
     }
 
     private static String formatPrice(Project p) {
-        // budget* 는 원 단위 저장 → 표시는 만원으로 압축.
+        // budget_min/budget_max 는 만원 단위 저장 (seed SQL 기준).
+        // budget_amount/monthly_rate 는 원 단위 저장 → 표시 시 /10000.
         if (p.getBudgetMin() != null && p.getBudgetMax() != null) {
-            return String.format("%,d~%,d만원", p.getBudgetMin() / 10000, p.getBudgetMax() / 10000);
+            if (p.getBudgetMin() == 0 && p.getBudgetMax() == 0) return "협의";
+            return String.format("%,d~%,d만원", p.getBudgetMin(), p.getBudgetMax());
         }
         if (p.getBudgetAmount() != null && p.getBudgetAmount() > 0) {
             return String.format("%,d만원", p.getBudgetAmount() / 10000);
